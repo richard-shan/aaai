@@ -232,8 +232,11 @@ class ControlledRunner:
             hook.set_prefill(amap if any_span else None)
         ids, mask, pos = ids.to(self.device), mask.to(self.device), pos.to(self.device)
         with torch.no_grad():
+            # logits_to_keep=1: only the last position is sampled from; full
+            # B x maxlen x vocab logits OOM on compaction re-prefills
             out = self.model(input_ids=ids, attention_mask=mask, position_ids=pos,
                              past_key_values=cache, use_cache=True,
+                             logits_to_keep=1,
                              cache_position=torch.arange(maxlen, device=self.device))
         for r in rows:
             r.n_forwards += 1
