@@ -35,6 +35,7 @@ class GenCfg:
     n_rollouts: int = 4
     backend: str = "vllm"          # vllm | hf
     batch_size: int = 32
+    limit_problems: int = 0        # 0 = all; >0 = pilot on the first N per dataset
 
 
 @dataclass(frozen=True)

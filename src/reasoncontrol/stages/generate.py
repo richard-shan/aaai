@@ -28,6 +28,8 @@ def main():
     datasets = present_datasets(paths.manifests(), args.datasets or cfg.datasets)
     for ds in datasets:
         problems = load_problems(paths.manifests(), ds)
+        if cfg.gen.limit_problems:
+            problems = problems[:cfg.gen.limit_problems]
         out_dir = paths.rollouts(ds)
         for s0 in range(0, len(problems), SHARD):
             shard_idx = s0 // SHARD

@@ -1,0 +1,7 @@
+{
+  "git_sha": "7d8ab53fdf3430990bd3e5fd76e7a8a91eab2a95",
+  "wall_s": 3.765127658843994,
+  "manifests": {
+    "gsm8k": "runs_smokegpu/data/manifests/gsm8k.parquet"
+  }
+}
