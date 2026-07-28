@@ -56,6 +56,21 @@ NOT DONE (this container was CPU-only with huggingface.co blocked):
 
 ## Progress log (append below, newest first)
 
+- 2026-07-28 (production, evening): both pipelines relaunched detached
+  (nohup/setsid; logs in runs/logs/) after harness-tied background tasks were
+  killed with the session (~2h lost, shard-resume worked as designed). 1.5B:
+  generate/chunk/capture/forced_answer done for all 4 datasets (parse 1.000,
+  cache hits 94.8-95.1%), label_phase kappa 0.43-0.52, and **D4 gate = GO**
+  (`conv AUC=0.882 at L15; min within-stratum margin over shallow=0.147`) —
+  both criteria pass (>=0.75 AUC, >=0.05 margin). Now in steering/sweeps.
+  7B: resumed mid-forced_answer (math_train 105k boundaries done, parse 1.000,
+  hit 94.8%); D4 pending. HF_TOKEN arrived -> stored at ~/.hf_token (0600);
+  GPQA-diamond manifest built standalone (198 MCQ problems, choices shuffled;
+  note: standalone build advances the seed-0 RNG differently than a full
+  prepare_data pass would — the written manifest is the single source of truth
+  and must not be regenerated). GPQA needs no offline stages (test-only anchor;
+  controller/baselines roll out at eval time from the manifest).
+
 - 2026-07-28 (acceptance): tiny-model smoke = SMOKE OK end-to-end. 1.5B vLLM
   pilot (20 greedy GSM8K rollouts): parse rate 1.000 at every position,
   prefix-cache hit 91.1% (>=90% gate PASS). Greedy argmax consistency 0.972
@@ -77,3 +92,8 @@ NOT DONE (this container was CPU-only with huggingface.co blocked):
   prefix drop, MCQ answer regex anchoring, vllm cache-hit metrics, capture
   full-logits OOM (sliced argmax) + per-shard residual-norm accumulation.
 - 2026-07-28: repo scaffolded, all modules + tests green on CPU; handoff.
+
+## Progress log — 2026-07-28 19:55 UTC (D4 gate)
+- Harness-tied background tasks were killed at 17:38; both pipelines relaunched **detached** (`nohup setsid`, logs at `runs/logs/run_{1p5b,7b}.log`) — survive session death; stages resumed from shard markers with no loss.
+- **1.5B D4 gate: GO** — `GO/NO-GO: conv AUC=0.882 at L15; min within-stratum margin over shallow=0.147 => GO`. forced_answer complete on all 4 datasets (parse 1.000, ~95% cache hits). label_phase kappa: math_train 0.453, math500 0.472, gsm8k 0.524, aime 0.426 (moderate; report as labeling-noise caveat, phase results are secondary per plan). build_steering vectors orthogonalized (cos vs probe ≈ 0 after).
+- 1.5B now in controller/baseline dev sweeps. 7B resumed mid-forced_answer (math_train done: 105k boundaries, parse 1.000, 94.8% hits); D4 gate for 7B pending.
