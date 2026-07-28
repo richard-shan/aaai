@@ -26,8 +26,14 @@ def _mk(dataset, split, idx, q, a, meta=None) -> Problem:
 
 
 def _math_train(out_dir, rng):
-    from datasets import load_dataset
-    ds = load_dataset("EleutherAI/hendrycks_math", "all", split="train")
+    from datasets import concatenate_datasets, load_dataset
+    # EleutherAI/hendrycks_math has no "all" config — concatenate the seven
+    # subject configs in sorted order so the seed-0 permutation is stable.
+    subjects = ["algebra", "counting_and_probability", "geometry",
+                "intermediate_algebra", "number_theory", "prealgebra",
+                "precalculus"]
+    ds = concatenate_datasets(
+        [load_dataset("EleutherAI/hendrycks_math", s, split="train") for s in subjects])
     idx = rng.permutation(len(ds))[:800]
     probs = []
     for j, i in enumerate(idx):
