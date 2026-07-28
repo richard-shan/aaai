@@ -56,4 +56,14 @@ NOT DONE (this container was CPU-only with huggingface.co blocked):
 
 ## Progress log (append below, newest first)
 
+- 2026-07-28 (GPU box): env up (venv /home/ubuntu/venvs/rc; pins resolved exactly
+  to plan: torch 2.11.0 / transformers 5.14.1 / vllm 0.26.0). 47 tests green on
+  GPU box. All 13 hub asset IDs verified incl. both AIME sets; weights prefetched
+  to HF_HOME=/home/ubuntu/hf (1.5B/7B/Llama-8B/0.5B/32B-AWQ judge/SAE/L1).
+  HF_TOKEN missing -> GPQA skipped by prepare_data (stages now skip absent
+  manifests). Fixed before first real run: hendrycks_math config list,
+  BatchEncoding token ids (hf_backend + phase_judge), manifest meta JSON,
+  ActStore.gather positional scatter, forced_answer max_model_len + over-length
+  prefix drop, MCQ answer regex anchoring, vllm cache-hit metrics, capture
+  full-logits OOM (sliced argmax) + per-shard residual-norm accumulation.
 - 2026-07-28: repo scaffolded, all modules + tests green on CPU; handoff.
