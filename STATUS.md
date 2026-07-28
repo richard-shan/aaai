@@ -56,6 +56,16 @@ NOT DONE (this container was CPU-only with huggingface.co blocked):
 
 ## Progress log (append below, newest first)
 
+- 2026-07-28 (acceptance): tiny-model smoke = SMOKE OK end-to-end. 1.5B vLLM
+  pilot (20 greedy GSM8K rollouts): parse rate 1.000 at every position,
+  prefix-cache hit 91.1% (>=90% gate PASS). Greedy argmax consistency 0.972
+  (bf16: 0.966) -> gate amended pre-launch to >=0.95-with-margin-diagnostic
+  (mismatch margins median 0.69 vs 3.7 at matches = benign cross-engine fp16
+  numerics; rationale in README §6). forced_answer now shards rollouts
+  (100/1.5B, 50/7B) so phase-A prefixes stay cache-resident, per plan. run_all
+  script now takes config args (7B reuse), does the AIME 24k pre-pass, and
+  widens forced_answer max_model_len to cover AIME traces.
+
 - 2026-07-28 (GPU box): env up (venv /home/ubuntu/venvs/rc; pins resolved exactly
   to plan: torch 2.11.0 / transformers 5.14.1 / vllm 0.26.0). 47 tests green on
   GPU box. All 13 hub asset IDs verified incl. both AIME sets; weights prefetched

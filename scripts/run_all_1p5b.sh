@@ -4,13 +4,29 @@
 # runs under CUDA_VISIBLE_DEVICES=1.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-CFG="--config configs/base.yaml"
+# default 1.5B; pass configs to override, e.g.:
+#   bash scripts/run_all_1p5b.sh --config configs/base.yaml configs/models/r1_qwen_7b.yaml
+CFG="${*:---config configs/base.yaml}"
+MODEL_ROOT=$(python - <<PY
+from reasoncontrol.config import load_config
+cfg = load_config([p for p in "$CFG".split() if p != "--config"], [])
+print(f"{cfg.runs_dir}/{cfg.model.tag}")
+PY
+)
 
 python -m reasoncontrol.stages.prepare_data $CFG
+# AIME pre-pass at the 24k think cap (plan: 16k everywhere, +24k AIME).
+# Its shards are on disk before the main 16k pass, which then skips them;
+# the stage-global done marker from the pre-pass must not stop the main pass.
+python -m reasoncontrol.stages.generate     $CFG --datasets aime \
+  --set gen.max_think_tokens=24576
+rm -f "$MODEL_ROOT/_stages/generate/stage.done"
 python -m reasoncontrol.stages.generate     $CFG
 python -m reasoncontrol.stages.chunk        $CFG
 python -m reasoncontrol.stages.capture      $CFG
-python -m reasoncontrol.stages.forced_answer $CFG --audit
+# 24k here only widens max_model_len so AIME prefixes fit
+python -m reasoncontrol.stages.forced_answer $CFG --audit \
+  --set gen.max_think_tokens=24576
 python -m reasoncontrol.stages.label_phase  $CFG
 python -m reasoncontrol.stages.train_probes $CFG
 python -m reasoncontrol.stages.build_steering $CFG --datasets math_train

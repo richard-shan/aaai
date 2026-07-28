@@ -62,33 +62,46 @@ def build_probes(chunks: list[ChunkRecord], prompt_ids: dict[tuple, list[int]],
 
 def run_forced_answers(backend: GenBackend, probes: list[BoundaryProbe],
                        max_new_tokens: int = 32,
-                       two_phase: bool = True) -> dict[tuple, str]:
-    """Returns (problem_id, rollout_id, chunk_idx) -> raw continuation text."""
+                       two_phase: bool = True,
+                       shard_rollouts: int = 100) -> dict[tuple, str]:
+    """Returns (problem_id, rollout_id, chunk_idx) -> raw continuation text.
+
+    Rollouts are processed in shards of `shard_rollouts` so that phase-A
+    prefixes are still resident in the vLLM prefix cache when phase B of the
+    same shard runs (whole-corpus submission evicts them: ~10k tokens/rollout
+    vs ~2M cached tokens on an 80 GB card)."""
     def req(p: BoundaryProbe) -> GenRequest:
         return GenRequest(request_id=f"{p.problem_id}|{p.rollout_id}|{p.chunk_idx}",
                           prompt_token_ids=p.prefix_token_ids,
                           max_tokens=max_new_tokens, greedy=True,
                           stop=("\n\n",))
-    results = {}
-    if two_phase:
-        longest: dict[tuple, BoundaryProbe] = {}
-        for p in probes:
-            key = (p.problem_id, p.rollout_id)
-            if key not in longest or len(p.prefix_token_ids) > len(longest[key].prefix_token_ids):
-                longest[key] = p
-        phase_a = list(longest.values())
-        phase_a_ids = {(p.problem_id, p.rollout_id, p.chunk_idx) for p in phase_a}
-        phase_b = [p for p in probes
-                   if (p.problem_id, p.rollout_id, p.chunk_idx) not in phase_a_ids]
-        batches = [phase_a, phase_b]
-    else:
-        batches = [probes]
-    for batch in batches:
-        if not batch:
-            continue
-        for res in backend.generate([req(p) for p in batch]):
-            pid, rid, cid = res.request_id.split("|")
-            results[(pid, int(rid), int(cid))] = res.text
+
+    by_rollout: dict[tuple, list[BoundaryProbe]] = {}
+    for p in probes:
+        by_rollout.setdefault((p.problem_id, p.rollout_id), []).append(p)
+    keys = sorted(by_rollout)
+    results: dict[tuple, str] = {}
+    for s0 in range(0, len(keys), max(shard_rollouts, 1)):
+        shard = [p for k in keys[s0:s0 + max(shard_rollouts, 1)] for p in by_rollout[k]]
+        if two_phase:
+            longest: dict[tuple, BoundaryProbe] = {}
+            for p in shard:
+                key = (p.problem_id, p.rollout_id)
+                if key not in longest or len(p.prefix_token_ids) > len(longest[key].prefix_token_ids):
+                    longest[key] = p
+            phase_a = list(longest.values())
+            phase_a_ids = {(p.problem_id, p.rollout_id, p.chunk_idx) for p in phase_a}
+            phase_b = [p for p in shard
+                       if (p.problem_id, p.rollout_id, p.chunk_idx) not in phase_a_ids]
+            batches = [phase_a, phase_b]
+        else:
+            batches = [shard]
+        for batch in batches:
+            if not batch:
+                continue
+            for res in backend.generate([req(p) for p in batch]):
+                pid, rid, cid = res.request_id.split("|")
+                results[(pid, int(rid), int(cid))] = res.text
     return results
 
 

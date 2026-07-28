@@ -56,7 +56,8 @@ def main():
         if len(probes) < n_all:   # label_chunks leaves dropped boundaries unlabeled
             print(f"forced_answer: {ds} dropped {n_all - len(probes)} "
                   f"over-length prefixes (> {limit} tokens)")
-        raw = run_forced_answers(backend, probes, cfg.forced.max_new_tokens)
+        raw = run_forced_answers(backend, probes, cfg.forced.max_new_tokens,
+                                 shard_rollouts=cfg.forced.shard_rollouts)
         picked = label_chunks(picked, raw, final_answers, gold, style=style)
         out = paths.forced(ds)
         out.parent.mkdir(parents=True, exist_ok=True)

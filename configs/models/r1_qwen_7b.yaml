@@ -6,3 +6,5 @@ model:
   steer_layer: 21
 gen:
   batch_size: 32
+forced:
+  shard_rollouts: 50

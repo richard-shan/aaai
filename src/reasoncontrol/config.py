@@ -53,6 +53,7 @@ class ForcedAnswerCfg:
     max_new_tokens: int = 32
     max_boundaries_per_rollout: int = 60
     dense_prefix: int = 20         # label all of the first N boundaries, then every 2nd
+    shard_rollouts: int = 100      # rollouts per prefix-cache shard (7B: 50)
 
 
 @dataclass(frozen=True)

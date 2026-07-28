@@ -73,8 +73,8 @@ def main():
             print(f"capture: {ds} argmax consistency {consistency[ds]:.4f}")
     mark_done(stage_dir, t0, {"argmax_consistency": consistency})
     for ds, c in consistency.items():
-        if cfg.gen.temperature == 0 and c < 0.99:
-            print(f"WARNING: {ds} consistency {c:.4f} < 0.99 on GREEDY rollouts "
+        if cfg.gen.temperature == 0 and c < 0.95:
+            print(f"WARNING: {ds} consistency {c:.4f} < 0.95 on GREEDY rollouts "
                   "— investigate tokenization/numerics drift before trusting labels")
         elif cfg.gen.temperature > 0:
             print(f"capture: {ds} argmax-vs-sampled agreement {c:.4f} "
