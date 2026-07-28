@@ -136,6 +136,7 @@ class ControlledRunner:
                  global_seed: int = 0,
                  cache_headroom: int = 4096,
                  refill_frac: float = 0.25,
+                 prefill_chunk: int = 2048,
                  think_tags: bool = True):
         self.model = model
         self.tok = tokenizer
@@ -153,6 +154,7 @@ class ControlledRunner:
         self.global_seed = global_seed
         self.cache_headroom = cache_headroom
         self.refill_frac = refill_frac
+        self.prefill_chunk = prefill_chunk
         self.think_tags = think_tags
         self.device = next(model.parameters()).device
         self.tap = ProbeTap()
@@ -216,6 +218,7 @@ class ControlledRunner:
         cache_len = maxlen + min(remaining, self.cache_headroom)
         cache = StaticCache(config=self.model.config, max_cache_len=cache_len)
         # replay steered spans into the prefill alpha maps
+        amaps = []
         for hook, kind in ((self.suppress_hook, "suppress"), (self.break_hook, "break")):
             if hook is None:
                 continue
@@ -229,15 +232,22 @@ class ControlledRunner:
                     e = end if end is not None else r.real_len
                     amap[i, off + start:off + e] = alpha
                     any_span = True
-            hook.set_prefill(amap if any_span else None)
+            amaps.append((hook, amap if any_span else None))
         ids, mask, pos = ids.to(self.device), mask.to(self.device), pos.to(self.device)
+        # chunked prefill: activation memory is B x S x intermediate, so a
+        # single-shot prefill of long compacted traces OOMs; logits_to_keep=1
+        # because only the last position is ever sampled from
         with torch.no_grad():
-            # logits_to_keep=1: only the last position is sampled from; full
-            # B x maxlen x vocab logits OOM on compaction re-prefills
-            out = self.model(input_ids=ids, attention_mask=mask, position_ids=pos,
-                             past_key_values=cache, use_cache=True,
-                             logits_to_keep=1,
-                             cache_position=torch.arange(maxlen, device=self.device))
+            for s in range(0, maxlen, self.prefill_chunk):
+                e = min(s + self.prefill_chunk, maxlen)
+                for hook, amap in amaps:
+                    sl = amap[:, s:e] if amap is not None else None
+                    hook.set_prefill(sl if sl is not None and bool(sl.any()) else None)
+                out = self.model(input_ids=ids[:, s:e], attention_mask=mask[:, :e],
+                                 position_ids=pos[:, s:e],
+                                 past_key_values=cache, use_cache=True,
+                                 logits_to_keep=1,
+                                 cache_position=torch.arange(s, e, device=self.device))
         for r in rows:
             r.n_forwards += 1
         return cache, out.logits[:, -1], mask, maxlen, cache_len
