@@ -12,12 +12,15 @@ from .backend import GenRequest, GenResult
 class VLLMBackend:
     def __init__(self, model_id: str, dtype: str = "float16",
                  max_model_len: int = 20480, gpu_memory_utilization: float = 0.92,
-                 enable_prefix_caching: bool = True, seed: int = 0, **_):
+                 enable_prefix_caching: bool = True, seed: int = 0,
+                 max_num_seqs: int = 0, **_):
         from vllm import LLM
+        kw = {"max_num_seqs": max_num_seqs} if max_num_seqs else {}
         self.llm = LLM(model=model_id, dtype=dtype, max_model_len=max_model_len,
                        gpu_memory_utilization=gpu_memory_utilization,
                        enable_prefix_caching=enable_prefix_caching, seed=seed,
-                       disable_log_stats=False)   # cache_hit_rate needs stats
+                       disable_log_stats=False,   # cache_hit_rate needs stats
+                       **kw)
 
     def generate(self, requests: list[GenRequest]) -> list[GenResult]:
         from vllm import SamplingParams, TokensPrompt

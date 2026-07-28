@@ -24,7 +24,9 @@ def main():
     tok = AutoTokenizer.from_pretrained(cfg.model.hf_id)
     backend = make_backend(cfg.gen.backend, cfg.model.hf_id, dtype=cfg.model.dtype,
                            batch_size=cfg.gen.batch_size,
-                           max_model_len=cfg.gen.max_think_tokens + cfg.gen.max_answer_tokens + 1024)
+                           max_model_len=cfg.gen.max_think_tokens + cfg.gen.max_answer_tokens + 1024,
+                           gpu_memory_utilization=cfg.gen.gpu_mem_util,
+                           max_num_seqs=cfg.gen.max_num_seqs)
     datasets = present_datasets(paths.manifests(), args.datasets or cfg.datasets)
     for ds in datasets:
         problems = load_problems(paths.manifests(), ds)

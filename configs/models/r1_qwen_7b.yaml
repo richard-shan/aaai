@@ -6,5 +6,9 @@ model:
   steer_layer: 21
 gen:
   batch_size: 32
+  # 24k-context generation at util 0.92 with ~120 concurrent seqs OOMed in the
+  # FA3 workspace on an 80GB H100; leave headroom and cap concurrency
+  gpu_mem_util: 0.85
+  max_num_seqs: 64
 forced:
   shard_rollouts: 50

@@ -27,7 +27,9 @@ def main():
     max_model_len = cfg.gen.max_think_tokens + cfg.gen.max_answer_tokens + 1024
     backend = make_backend(cfg.gen.backend, cfg.model.hf_id, dtype=cfg.model.dtype,
                            batch_size=cfg.gen.batch_size,
-                           max_model_len=max_model_len)
+                           max_model_len=max_model_len,
+                           gpu_memory_utilization=cfg.gen.gpu_mem_util,
+                           max_num_seqs=cfg.gen.max_num_seqs)
     hit_rates = {}
     from ..data.datasets import present_datasets
     for ds in present_datasets(paths.manifests(), args.datasets or cfg.datasets):

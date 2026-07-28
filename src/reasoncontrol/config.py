@@ -36,6 +36,8 @@ class GenCfg:
     backend: str = "vllm"          # vllm | hf
     batch_size: int = 32
     limit_problems: int = 0        # 0 = all; >0 = pilot on the first N per dataset
+    gpu_mem_util: float = 0.92     # vllm gpu_memory_utilization
+    max_num_seqs: int = 0          # 0 = vllm default; cap for long-ctx 7B runs
 
 
 @dataclass(frozen=True)
