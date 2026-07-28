@@ -1,0 +1,8 @@
+model:
+  hf_id: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+  tag: r1_qwen_7b
+  cache_layers: [9, 12, 15, 18, 21, 24, 26, 27]
+  probe_layer: 18
+  steer_layer: 21
+gen:
+  batch_size: 32

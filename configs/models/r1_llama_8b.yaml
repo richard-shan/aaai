@@ -1,0 +1,9 @@
+model:
+  hf_id: deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+  tag: r1_llama_8b
+  # layer 19 included: open SAE qresearch/DeepSeek-R1-Distill-Llama-8B-SAE-l19
+  cache_layers: [10, 14, 17, 19, 21, 24, 27, 30]
+  probe_layer: 19
+  steer_layer: 24
+gen:
+  batch_size: 32

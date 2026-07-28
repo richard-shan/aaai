@@ -1,0 +1,36 @@
+# End-to-end smoke: tiny non-reasoning model, CPU-safe, minutes not hours.
+# Usage: python -m reasoncontrol.stages.<stage> --config configs/base.yaml configs/smoke.yaml
+runs_dir: runs_smoke
+datasets: [gsm8k]
+
+model:
+  hf_id: Qwen/Qwen2.5-0.5B-Instruct
+  tag: smoke_qwen_0p5b
+  dtype: float32
+  cache_layers: [6, 10, 14, 20]
+  probe_layer: 10
+  steer_layer: 14
+  think_tags: false          # whole output treated as the trace
+  device: auto
+
+gen:
+  max_think_tokens: 256
+  max_answer_tokens: 64
+  n_rollouts: 2
+  backend: hf
+  batch_size: 4
+
+chunk:
+  min_chunk_tokens: 4
+  max_chunks: 40
+
+forced:
+  max_boundaries_per_rollout: 10
+  dense_prefix: 5
+
+probe:
+  epochs: 60
+
+policy:
+  min_chunks: 1
+  patience_k: 1
