@@ -27,13 +27,17 @@ def main():
                                           cfg.model.device)
     pad = tok.pad_token_id if tok.pad_token_id is not None else tok.eos_token_id
     consistency = {}
-    for ds in (args.datasets or cfg.datasets):
+    from ..data.datasets import present_datasets
+    for ds in present_datasets(paths.manifests(), args.datasets or cfg.datasets):
         chunks = load_chunks_df(paths.chunks(ds))
         rollouts = read_all_rollouts(paths.rollouts(ds))
         by_key = {(r["problem_id"], r["rollout_id"]): r for r in rollouts}
         store = ActStore(paths.acts_dir(ds), cfg.model.cache_layers)
         keys = sorted(by_key)
         matches = []
+        by_shard_path = store.root / "residual_norms_by_shard.json"
+        norms_by_shard = (json.loads(by_shard_path.read_text())
+                          if by_shard_path.exists() else {})
         for s0 in range(0, len(keys), SHARD):
             shard_idx = s0 // SHARD
             if (store.root / f"acts_{shard_idx:03d}.safetensors").exists() and not args.force:
@@ -55,8 +59,15 @@ def main():
                 batch_size=max(1, cfg.gen.batch_size // 8))
             store.write_shard(shard_idx, h, index_rows)
             matches.append(argmax_match)
+            # accumulate per shard; the mean across shards is what ships
+            norms_by_shard[str(shard_idx)] = {str(k): v for k, v in norms.items()}
+            by_shard_path.write_text(json.dumps(norms_by_shard))
+            layer_keys = sorted({k for n in norms_by_shard.values() for k in n},
+                                key=int)
             (store.root / "residual_norms.json").write_text(json.dumps(
-                {str(k): v for k, v in norms.items()}))
+                {k: sum(n[k] for n in norms_by_shard.values() if k in n)
+                    / sum(1 for n in norms_by_shard.values() if k in n)
+                 for k in layer_keys}))
         if matches:
             consistency[ds] = sum(matches) / len(matches)
             print(f"capture: {ds} argmax consistency {consistency[ds]:.4f}")

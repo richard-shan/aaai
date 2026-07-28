@@ -11,6 +11,7 @@ import re
 import numpy as np
 
 from ..generation.backend import GenBackend, GenRequest
+from ..generation.hf_backend import apply_chat_template
 from .phase_regex import PHASES
 
 JUDGE_PROMPT = """You are annotating one step of a model's math reasoning trace.
@@ -33,10 +34,7 @@ def judge_requests(chunks: list, tokenizer, max_chars: int = 1200) -> list[GenRe
     reqs = []
     for i, c in enumerate(chunks):
         prompt = JUDGE_PROMPT.format(chunk=c.text[:max_chars])
-        msgs = [{"role": "user", "content": prompt}]
-        ids = tokenizer.apply_chat_template(msgs, add_generation_prompt=True, tokenize=True)
-        if isinstance(ids, dict):
-            ids = ids["input_ids"]
+        ids = apply_chat_template(tokenizer, prompt)
         reqs.append(GenRequest(request_id=str(i), prompt_token_ids=tuple(ids),
                                max_tokens=8, greedy=True))
     return reqs

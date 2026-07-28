@@ -16,7 +16,8 @@ class VLLMBackend:
         from vllm import LLM
         self.llm = LLM(model=model_id, dtype=dtype, max_model_len=max_model_len,
                        gpu_memory_utilization=gpu_memory_utilization,
-                       enable_prefix_caching=enable_prefix_caching, seed=seed)
+                       enable_prefix_caching=enable_prefix_caching, seed=seed,
+                       disable_log_stats=False)   # cache_hit_rate needs stats
 
     def generate(self, requests: list[GenRequest]) -> list[GenResult]:
         from vllm import SamplingParams, TokensPrompt
@@ -42,9 +43,11 @@ class VLLMBackend:
             metrics = self.llm.llm_engine.get_metrics()   # vLLM v1 API
             hits = queries = None
             for m in metrics:
-                if "prefix_cache" in m.name and m.name.endswith("hits"):
+                # exact names: vllm:external_prefix_cache_* would shadow these
+                # under a suffix match
+                if m.name == "vllm:prefix_cache_hits":
                     hits = m.value
-                if "prefix_cache" in m.name and m.name.endswith("queries"):
+                elif m.name == "vllm:prefix_cache_queries":
                     queries = m.value
             if hits is not None and queries:
                 return hits / queries

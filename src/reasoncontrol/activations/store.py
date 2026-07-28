@@ -58,7 +58,9 @@ class ActStore:
         """keys: DataFrame with problem_id/rollout_id/chunk_idx (order preserved).
         Returns [len(keys), d] fp32 states at `layer`."""
         li = self.layers.index(layer)
-        idx = self.index().merge(keys.reset_index(names="_ord"),
+        # _ord must be POSITIONAL (0..n-1), not the caller's index labels —
+        # filtered/concatenated frames carry arbitrary labels
+        idx = self.index().merge(keys.reset_index(drop=True).reset_index(names="_ord"),
                                  on=["problem_id", "rollout_id", "chunk_idx"], how="inner")
         if len(idx) != len(keys):
             missing = len(keys) - len(idx)

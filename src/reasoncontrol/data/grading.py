@@ -12,7 +12,6 @@ import re
 from math_verify import parse, verify
 
 _BOXED = re.compile(r"\\boxed\s*\{")
-_MCQ = re.compile(r"\(?([A-D])\)?")
 
 
 def extract_boxed(text: str) -> str | None:
@@ -37,9 +36,18 @@ def extract_answer(text: str, style: str = "math") -> str | None:
     if "</think>" in text:
         text = text.rsplit("</think>", 1)[1]
     if style == "mcq":
+        # last parenthesized letter wins; bare capitals in prose are too noisy
         m = None
-        for m in _MCQ.finditer(text):
+        for m in re.finditer(r"\(([A-D])\)", text):
             pass
+        if m:
+            return m.group(1)
+        m = None
+        for m in re.finditer(r"answer is[:\s]*\(?([A-D])\b", text, flags=re.I):
+            pass
+        if m:
+            return m.group(1)
+        m = re.match(r"\s*\(?([A-D])\)?\s*$", text.strip())
         return m.group(1) if m else None
     boxed = extract_boxed(text)
     if boxed is not None:

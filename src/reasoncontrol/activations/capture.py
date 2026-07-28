@@ -33,6 +33,25 @@ class MultiTap:
         self._handles = []
 
 
+class FinalNormTap:
+    """Captures the post-final-norm hidden state so next-token argmax can be
+    recomputed in slices without materializing full-sequence logits."""
+
+    def __init__(self, model):
+        self.state: torch.Tensor | None = None
+
+        def hook(module, args, output):
+            h = output[0] if isinstance(output, tuple) else output
+            self.state = h.detach()
+            return output
+        self._handle = model.model.norm.register_forward_hook(hook)
+
+    def detach(self):
+        if self._handle is not None:
+            self._handle.remove()
+            self._handle = None
+
+
 @torch.no_grad()
 def capture_boundaries(model, sequences: list[list[int]],
                        boundary_positions: list[list[int]],
@@ -49,6 +68,7 @@ def capture_boundaries(model, sequences: list[list[int]],
     """
     device = device or next(model.parameters()).device
     tap = MultiTap(model, layers)
+    final_tap = FinalNormTap(model)
     outs, matches, totals = [], 0, 0
     norm_sums = {li: 0.0 for li in layers}
     norm_counts = {li: 0 for li in layers}
@@ -62,14 +82,19 @@ def capture_boundaries(model, sequences: list[list[int]],
             for b, s in enumerate(seqs):
                 ids[b, :len(s)] = torch.tensor(s)      # RIGHT padding: positions align
                 mask[b, :len(s)] = 1
-            out = model(input_ids=ids.to(device), attention_mask=mask.to(device))
+            # logits_to_keep=1: full [B, L, vocab] logits would be tens of GB
+            # at 16k length; argmax is recomputed below in slices via lm_head
+            model(input_ids=ids.to(device), attention_mask=mask.to(device),
+                  logits_to_keep=1)
             # consistency: argmax at position p predicts token p+1
-            logits = out.logits
+            h_final = final_tap.state                   # [B, L, d] post-norm
             for b, s in enumerate(seqs):
-                pred = logits[b, :len(s) - 1].argmax(-1).cpu()
-                tgt = torch.tensor(s[1:])
-                matches += int((pred == tgt).sum())
-                totals += len(s) - 1
+                for st in range(0, len(s) - 1, 4096):
+                    en = min(st + 4096, len(s) - 1)
+                    pred = model.lm_head(h_final[b:b + 1, st:en]).argmax(-1)[0].cpu()
+                    tgt = torch.tensor(s[st + 1:en + 1])
+                    matches += int((pred == tgt).sum())
+                    totals += en - st
             for li in layers:
                 h = tap.states[li]                     # [B, L, d]
                 for b, s in enumerate(seqs):
@@ -81,6 +106,7 @@ def capture_boundaries(model, sequences: list[list[int]],
                 outs.append(stacked[b, pos].to(torch.float16).cpu())          # [nb, nl, d]
     finally:
         tap.detach()
+        final_tap.detach()
     h = torch.cat(outs, dim=0) if outs else torch.zeros(0, len(layers), model.config.hidden_size)
     norms = {li: norm_sums[li] / max(norm_counts[li], 1) for li in layers}
     argmax_match = matches / max(totals, 1)

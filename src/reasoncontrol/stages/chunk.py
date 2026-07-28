@@ -20,7 +20,8 @@ def main():
     t0 = time.time()
     from transformers import AutoTokenizer
     tok = AutoTokenizer.from_pretrained(cfg.model.hf_id)
-    for ds in (args.datasets or cfg.datasets):
+    from ..data.datasets import present_datasets
+    for ds in present_datasets(paths.manifests(), args.datasets or cfg.datasets):
         rollouts = read_all_rollouts(paths.rollouts(ds))
         if not rollouts:
             continue

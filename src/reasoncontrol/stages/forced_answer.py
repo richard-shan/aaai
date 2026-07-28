@@ -23,11 +23,14 @@ def main():
     t0 = time.time()
     from transformers import AutoTokenizer
     tok = AutoTokenizer.from_pretrained(cfg.model.hf_id)
+    # must cover prompt + full think trace (no </think> => whole output) + suffix
+    max_model_len = cfg.gen.max_think_tokens + cfg.gen.max_answer_tokens + 1024
     backend = make_backend(cfg.gen.backend, cfg.model.hf_id, dtype=cfg.model.dtype,
                            batch_size=cfg.gen.batch_size,
-                           max_model_len=cfg.gen.max_think_tokens + 256)
+                           max_model_len=max_model_len)
     hit_rates = {}
-    for ds in (args.datasets or cfg.datasets):
+    from ..data.datasets import present_datasets
+    for ds in present_datasets(paths.manifests(), args.datasets or cfg.datasets):
         chunks_df = load_chunks_df(paths.chunks(ds))
         rollouts = read_all_rollouts(paths.rollouts(ds))
         style = rollouts[0].get("style", "math") if rollouts else "math"
@@ -47,6 +50,12 @@ def main():
                          for r in rollouts}
         gold = {r["problem_id"]: r["gold_answer"] for r in rollouts}
         probes = build_probes(picked, prompt_ids, output_ids, suffix_ids)
+        limit = max_model_len - cfg.forced.max_new_tokens
+        n_all = len(probes)
+        probes = [p for p in probes if len(p.prefix_token_ids) <= limit]
+        if len(probes) < n_all:   # label_chunks leaves dropped boundaries unlabeled
+            print(f"forced_answer: {ds} dropped {n_all - len(probes)} "
+                  f"over-length prefixes (> {limit} tokens)")
         raw = run_forced_answers(backend, probes, cfg.forced.max_new_tokens)
         picked = label_chunks(picked, raw, final_answers, gold, style=style)
         out = paths.forced(ds)

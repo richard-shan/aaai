@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 
-from ..data.datasets import build_prompt, load_problems
+from ..data.datasets import build_prompt, load_problems, present_datasets
 from ..data.grading import extract_answer, grade
 from ..generation.backend import GenRequest, make_backend
 from ..generation.hf_backend import apply_chat_template
@@ -25,7 +25,7 @@ def main():
     backend = make_backend(cfg.gen.backend, cfg.model.hf_id, dtype=cfg.model.dtype,
                            batch_size=cfg.gen.batch_size,
                            max_model_len=cfg.gen.max_think_tokens + cfg.gen.max_answer_tokens + 1024)
-    datasets = args.datasets or cfg.datasets
+    datasets = present_datasets(paths.manifests(), args.datasets or cfg.datasets)
     for ds in datasets:
         problems = load_problems(paths.manifests(), ds)
         out_dir = paths.rollouts(ds)

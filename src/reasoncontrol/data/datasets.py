@@ -55,6 +55,18 @@ def save_manifest(problems: list[Problem], manifest_dir: str | Path, dataset: st
     return path
 
 
+def present_datasets(manifest_dir: str | Path, requested) -> list[str]:
+    """Filter a dataset list to those with a manifest on disk (e.g. GPQA is
+    skipped by prepare_data when no HF_TOKEN grants gated access)."""
+    out = []
+    for ds in requested:
+        if (Path(manifest_dir) / f"{ds}.parquet").exists():
+            out.append(ds)
+        else:
+            print(f"WARNING: no manifest for dataset {ds!r}; skipping")
+    return out
+
+
 def build_prompt(problem: Problem, style: str = "math") -> str:
     if style == "mcq":
         choices = problem.meta.get("choices", [])

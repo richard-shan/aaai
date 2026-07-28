@@ -25,7 +25,8 @@ def main():
     kappas = {}
     use_judge = cfg.gen.backend == "vllm"    # judge stubbed on smoke/CPU runs
     judge_backend = judge_tok = None
-    for ds in (args.datasets or cfg.datasets):
+    from ..data.datasets import present_datasets
+    for ds in present_datasets(paths.manifests(), args.datasets or cfg.datasets):
         forced_path = paths.forced(ds)
         base = load_chunks_df(forced_path if forced_path.exists()
                               else paths.chunks(ds))

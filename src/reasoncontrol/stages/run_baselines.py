@@ -15,7 +15,7 @@ from dataclasses import asdict
 from ..controller.baselines import (CONCISE_SUFFIX, budget_suffix, run_plain,
                                     run_static_budget, run_trial_decode)
 from ..controller.policy import policy_hash
-from ..data.datasets import build_prompt, load_problems
+from ..data.datasets import build_prompt, load_problems, present_datasets
 from ..data.grading import extract_answer, grade
 from ..generation.backend import make_backend
 from ..generation.hf_backend import apply_chat_template
@@ -44,7 +44,7 @@ def main():
 
     import os
     split = os.environ.get("RC_SPLIT", "dev")
-    for ds in (args.datasets or cfg.datasets):
+    for ds in present_datasets(paths.manifests(), args.datasets or cfg.datasets):
         problems = load_problems(paths.manifests(), ds, split=split)
         if not problems:
             continue

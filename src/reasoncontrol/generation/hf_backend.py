@@ -66,8 +66,8 @@ class HFBackend:
             mask[i, maxlen - len(r.prompt_token_ids):] = 1
         r0 = reqs[0]
         do_sample = not r0.greedy and r0.temperature > 0
-        gen = torch.Generator(device="cpu")
-        gen.manual_seed(r0.seed)
+        # transformers sampling uses the global RNG; seed it per batch
+        torch.manual_seed(r0.seed)
         res = self.model.generate(
             ids.to(self.device), attention_mask=mask.to(self.device),
             max_new_tokens=r0.max_tokens, do_sample=do_sample,

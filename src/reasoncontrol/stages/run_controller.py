@@ -13,7 +13,7 @@ from dataclasses import asdict
 from ..config import PolicyCfg
 from ..controller.loop import ControlledRunner, Job
 from ..controller.policy import make_policy, policy_hash
-from ..data.datasets import build_prompt, load_problems
+from ..data.datasets import build_prompt, load_problems, present_datasets
 from ..data.grading import extract_answer, grade
 from ..generation.hf_backend import apply_chat_template, load_model_and_tokenizer
 from ..labeling.phase_regex import PHASES
@@ -64,7 +64,7 @@ def main():
 
     import os
     split = os.environ.get("RC_SPLIT", "dev")
-    for ds in (args.datasets or cfg.datasets):
+    for ds in present_datasets(paths.manifests(), args.datasets or cfg.datasets):
         problems = load_problems(paths.manifests(), ds, split=split)
         if not problems:
             continue
