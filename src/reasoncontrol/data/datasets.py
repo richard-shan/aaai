@@ -4,6 +4,7 @@ offline work never touch the hub.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -31,7 +32,11 @@ def load_problems(manifest_dir: str | Path, dataset: str,
         df = df[df["split"] == split]
     out = []
     for row in df.itertuples(index=False):
-        meta = row.meta if isinstance(row.meta, dict) else {}
+        # meta is stored as a JSON string (arrow cannot write empty structs)
+        if isinstance(row.meta, str):
+            meta = json.loads(row.meta) if row.meta else {}
+        else:
+            meta = row.meta if isinstance(row.meta, dict) else {}
         out.append(Problem(problem_id=row.problem_id, dataset=row.dataset,
                            split=row.split, question=row.question,
                            gold_answer=str(row.gold_answer), meta=meta))
@@ -42,7 +47,8 @@ def save_manifest(problems: list[Problem], manifest_dir: str | Path, dataset: st
     Path(manifest_dir).mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame([{
         "problem_id": p.problem_id, "dataset": p.dataset, "split": p.split,
-        "question": p.question, "gold_answer": p.gold_answer, "meta": p.meta,
+        "question": p.question, "gold_answer": p.gold_answer,
+        "meta": json.dumps(p.meta or {}),
     } for p in problems])
     path = Path(manifest_dir) / f"{dataset}.parquet"
     df.to_parquet(path, index=False)

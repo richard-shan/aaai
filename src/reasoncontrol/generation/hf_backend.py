@@ -33,9 +33,12 @@ def apply_chat_template(tokenizer, user_prompt: str, think_tags: bool = True,
         + [{"role": "user", "content": user_prompt}]
     ids = tokenizer.apply_chat_template(messages, add_generation_prompt=True,
                                         tokenize=True)
-    if isinstance(ids, dict):
+    # transformers 5.x returns a BatchEncoding (UserDict, NOT a dict subclass)
+    if hasattr(ids, "keys"):
         ids = ids["input_ids"]
-    return list(ids)
+    if ids and isinstance(ids[0], (list, tuple)):   # batched form
+        ids = ids[0]
+    return [int(i) for i in ids]
 
 
 class HFBackend:
