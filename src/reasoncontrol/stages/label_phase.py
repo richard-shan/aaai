@@ -28,8 +28,21 @@ def main():
     from ..data.datasets import present_datasets
     for ds in present_datasets(paths.manifests(), args.datasets or cfg.datasets):
         forced_path = paths.forced(ds)
-        base = load_chunks_df(forced_path if forced_path.exists()
-                              else paths.chunks(ds))
+        src = forced_path if forced_path.exists() else paths.chunks(ds)
+        if not src.exists():
+            # eval-only anchors (gpqa) have a manifest but no offline chunks
+            print(f"label_phase: {ds} has no chunk/forced artifacts; skipping")
+            continue
+        out = paths.labels(ds)
+        if out.exists() and not args.force:
+            df = pd.read_parquet(out, columns=["phase_regex", "phase_judge"])
+            j = df.dropna(subset=["phase_judge"])
+            if len(j):
+                kappas[ds] = cohens_kappa(list(j.phase_regex), list(j.phase_judge))
+            print(f"label_phase: {ds} labels exist; skipping"
+                  + (f" (kappa={kappas[ds]:.3f} from stored judge)" if ds in kappas else ""))
+            continue
+        base = load_chunks_df(src)
         base["phase_regex"] = [label_phase(t) for t in base["text"]]
         if use_judge:
             if judge_backend is None:
