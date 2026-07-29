@@ -56,6 +56,21 @@ NOT DONE (this container was CPU-only with huggingface.co blocked):
 
 ## Progress log (append below, newest first)
 
+- 2026-07-29 (overnight): **7B D4 gate = GO** (`conv AUC=0.854 at L18; min
+  within-stratum margin over shallow=0.246`) — both models pass D4. 7B
+  label_phase kappa 0.451-0.492 (same range as 1.5B). Fixes tonight, each
+  verified + pushed: (1) controller compaction re-prefill OOM x2 ->
+  logits_to_keep=1 then chunked 2048-token prefill, token-identical incl.
+  steered-span replay; (2) vLLM EngineCore atexit join hung 5h AFTER
+  forced_answer completed -> stages now engine_core.shutdown() + os._exit(0)
+  post-mark_done; (3) controller decode was CPU-bound in per-row top-p over
+  152k vocab (GPU ~5%, ~40h projected sweep) -> batched GPU top-p
+  (_StepSampler), per-row generators kept, distribution-exact; GPU now ~97%;
+  (4) label_phase crashed on gpqa manifest (eval-only, no chunks) -> artifact
+  guard + per-dataset resume w/ kappa from stored judge. Stray offline gpqa
+  rollouts exist for both models (relaunch pass-through); unused, harmless.
+  Watchdog now also detects CPU-tick stalls (15 min).
+
 - 2026-07-28 (production, evening): both pipelines relaunched detached
   (nohup/setsid; logs in runs/logs/) after harness-tied background tasks were
   killed with the session (~2h lost, shard-resume worked as designed). 1.5B:
