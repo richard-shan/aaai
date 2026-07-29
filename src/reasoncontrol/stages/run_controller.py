@@ -82,7 +82,11 @@ def main():
                 jobs.append(Job(problem_id=p.problem_id, rollout_id=rid,
                                 prompt_ids=pid, gold_answer=p.gold_answer,
                                 style=style))
-        results = runner.run(jobs, batch_size=cfg.gen.batch_size)
+        results = runner.run(
+            jobs, batch_size=cfg.gen.batch_size,
+            progress_cb=lambda done, pending: print(
+                f"run_controller[{pcfg.kind}]: {ds} {done}/{len(jobs)} rollouts "
+                f"({pending} queued) t+{time.time() - t0:.0f}s", flush=True))
         gold = {p.problem_id: (p.gold_answer, p.meta.get("style", "math"))
                 for p in problems}
         records = []
