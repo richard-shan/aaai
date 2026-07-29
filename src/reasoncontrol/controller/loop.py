@@ -124,6 +124,37 @@ def sample_token(logits: torch.Tensor, temperature: float, top_p: float,
     return int(torch.multinomial(probs, 1, generator=gen).item())
 
 
+class _StepSampler:
+    """One batched softmax/top-p pass on the model device per decode step
+    (per-row CPU-vocab sampling dominated sweep wall-clock); the draw itself
+    stays on each row's own generator so a row's trajectory is independent of
+    batch composition."""
+
+    def __init__(self, logits: torch.Tensor, temperature: float, top_p: float):
+        self.temperature, self.top_p = temperature, top_p
+        self.greedy_ids = logits.argmax(dim=-1).cpu()            # [B]
+        self.idx = None
+        if temperature > 0:
+            probs = F.softmax(logits.float() / temperature, dim=-1)
+            if top_p < 1.0:
+                sp, si = probs.sort(descending=True, dim=-1)
+                cum = sp.cumsum(-1)
+                keep = cum - sp < top_p        # prefix mask per row
+                sp = sp * keep
+                k = max(int(keep.sum(dim=-1).max().item()), 1)
+                sp = sp[:, :k]                 # kept mass is entirely in [:k]
+                self.probs = (sp / sp.sum(-1, keepdim=True)).cpu()
+                self.idx = si[:, :k].cpu()
+            else:
+                self.probs = probs.cpu()
+
+    def draw(self, i: int, gen: torch.Generator, greedy: bool = False) -> int:
+        if greedy or self.temperature <= 0:
+            return int(self.greedy_ids[i])
+        pick = int(torch.multinomial(self.probs[i], 1, generator=gen).item())
+        return pick if self.idx is None else int(self.idx[i, pick])
+
+
 class ControlledRunner:
     def __init__(self, model, tokenizer, policy: ControllerPolicy,
                  gen_cfg: GenCfg, policy_cfg: PolicyCfg,
@@ -256,6 +287,9 @@ class ControlledRunner:
     def _run_batch_until_compaction(self, rows: list[_Row]) -> list[ControllerResult]:
         cache, last_logits, mask, written, cache_len = self._prefill(rows)
         B = len(rows)
+        # preallocated mask: torch.cat per step copies the whole mask each time
+        full_mask = torch.zeros((B, cache_len), dtype=mask.dtype, device=self.device)
+        full_mask[:, :written] = mask
         finished_results: list[ControllerResult] = []
         # boundary decisions pending from prefill (only when resuming mid-trace
         # after compaction we do NOT re-decide old boundaries; state carries over)
@@ -270,6 +304,8 @@ class ControlledRunner:
             if cache_len is not None and written >= cache_len:
                 break                      # cache full: rebuild with more room
             # ---- decide next token per row (probe decisions first) -----
+            sampler = _StepSampler(last_logits, self.gen_cfg.temperature,
+                                   self.gen_cfg.top_p)
             next_ids = torch.zeros((B, 1), dtype=torch.long)
             for i, r in enumerate(rows):
                 if r.finished:
@@ -281,7 +317,7 @@ class ControlledRunner:
                     if r.mode is Mode.THINK:
                         self._decide_at_boundary(r, i)
                     r.pending_boundary = False
-                next_ids[i, 0] = self._next_token(r, last_logits[i])
+                next_ids[i, 0] = self._next_token(r, i, sampler)
             # ---- bookkeeping on the sampled tokens ---------------------
             for i, r in enumerate(rows):
                 if r.finished:
@@ -301,11 +337,11 @@ class ControlledRunner:
                 self.break_hook.set_rows(torch.tensor(
                     [r.alpha if r.steer_kind == "break" and not r.finished else 0.0
                      for r in rows]))
-            mask = torch.cat([mask, torch.ones((B, 1), dtype=mask.dtype, device=self.device)],
-                             dim=-1)
+            full_mask[:, written] = 1
             pos = torch.tensor([[r.real_len - 1] for r in rows], device=self.device)
             with torch.no_grad():
-                out = self.model(input_ids=next_ids.to(self.device), attention_mask=mask,
+                out = self.model(input_ids=next_ids.to(self.device),
+                                 attention_mask=full_mask[:, :written + 1],
                                  position_ids=pos, past_key_values=cache, use_cache=True,
                                  cache_position=torch.tensor([written], device=self.device))
             for r in rows:
@@ -363,7 +399,7 @@ class ControlledRunner:
         r.force_queue = list(self.exit_suffix_ids)
         r.mode = Mode.ANSWER_GREEDY
 
-    def _next_token(self, r: _Row, logits: torch.Tensor) -> int:
+    def _next_token(self, r: _Row, i: int, sampler: _StepSampler) -> int:
         # hard budget (s1-style budget forcing) applies in THINK mode
         hb = self.policy.hard_budget
         if (r.mode is Mode.THINK and not r.force_queue
@@ -374,9 +410,7 @@ class ControlledRunner:
             r._just_forced = True
             return r.force_queue.pop(0)
         r._just_forced = False
-        greedy = r.mode is Mode.ANSWER_GREEDY
-        return sample_token(logits.cpu(), self.gen_cfg.temperature,
-                            self.gen_cfg.top_p, r.gen, greedy=greedy)
+        return sampler.draw(i, r.gen, greedy=r.mode is Mode.ANSWER_GREEDY)
 
     def _track_token(self, r: _Row, t: int) -> None:
         if r.mode is Mode.THINK:
