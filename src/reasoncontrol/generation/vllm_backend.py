@@ -41,6 +41,13 @@ class VLLMBackend:
                                      finish_reason=str(comp.finish_reason)))
         return results
 
+    def shutdown(self) -> None:
+        """Terminate EngineCore procs; atexit joins on them can hang forever."""
+        try:
+            self.llm.llm_engine.engine_core.shutdown()
+        except Exception:
+            pass
+
     def cache_hit_rate(self) -> float | None:
         try:
             metrics = self.llm.llm_engine.get_metrics()   # vLLM v1 API

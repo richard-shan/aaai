@@ -73,7 +73,9 @@ def main():
             write_jsonl_zst(shard_path, records)
             print(f"generate: {ds} shard {shard_idx} ({len(records)} rollouts)")
     mark_done(stage_dir, t0)
+    return backend
 
 
 if __name__ == "__main__":
-    main()
+    from ._stage import exit_stage
+    exit_stage(main())

@@ -72,6 +72,7 @@ def main():
         if args.audit:
             _audit(picked)
     mark_done(stage_dir, t0, {"cache_hit_rates": hit_rates})
+    return backend
 
 
 def _audit(picked, n: int = 50):
@@ -88,4 +89,5 @@ def _audit(picked, n: int = 50):
 
 
 if __name__ == "__main__":
-    main()
+    from ._stage import exit_stage
+    exit_stage(main())

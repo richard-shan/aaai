@@ -100,7 +100,9 @@ def main():
               f"acc={acc:.3f} mean_think={toks:.0f}")
     (stage_dir / f"{phash}.json").write_text(json.dumps(asdict(pcfg), indent=2))
     mark_done(stage_dir, t0)
+    return backend
 
 
 if __name__ == "__main__":
-    main()
+    from ._stage import exit_stage
+    exit_stage(main())

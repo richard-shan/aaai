@@ -61,7 +61,9 @@ def main():
               + (f", kappa={kappas.get(ds):.3f}" if ds in kappas else ""))
     (stage_dir / "kappa.json").write_text(json.dumps(kappas, indent=2))
     mark_done(stage_dir, t0, {"kappa": kappas})
+    return judge_backend
 
 
 if __name__ == "__main__":
-    main()
+    from ._stage import exit_stage
+    exit_stage(main())

@@ -54,6 +54,18 @@ def mark_done(stage_dir: Path, t_start: float, extra: dict | None = None) -> Non
 
 # ---- rollout jsonl.zst IO ---------------------------------------------------
 
+def exit_stage(backend=None) -> None:
+    """Hard-exit a finished vLLM stage: EngineCore atexit joins can hang
+    forever after all work + mark_done are complete (observed 5h stall)."""
+    import os
+    import sys
+    if backend is not None:
+        getattr(backend, "shutdown", lambda: None)()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)
+
+
 def write_jsonl_zst(path: Path, records: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     cctx = zstandard.ZstdCompressor()
