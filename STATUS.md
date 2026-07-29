@@ -54,6 +54,58 @@ NOT DONE (this container was CPU-only with huggingface.co blocked):
 - Pre-registered D6 decision: if steering adds < 5% of exit-only's token
   savings at matched accuracy, re-headline exit-led (see plan §Direction).
 
+## LIVE OPERATIONS (2026-07-29 03:55 UTC — read this first on session restart)
+
+Everything below survives a Claude/session crash: pipelines + switchover
+waiters run under `nohup setsid`. Logs: `runs/logs/`. HF token: `~/.hf_token`
+(0600; wired, GPQA access verified). Env for ALL launches:
+`PATH=/home/ubuntu/venvs/rc/bin:$PATH HF_HOME=/home/ubuntu/hf HF_TOKEN=$(cat
+~/.hf_token) TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=<0|1>
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`.
+
+Running now (check `pgrep -af "run_controller|run_baselines|switchover"`):
+- GPU0: 1.5B dev point full/tau=.7/K=1 n=4 (PID 126632, started 01:06 UTC,
+  ~2.5-3h/point is NORMAL — HF closed loop). When it exits, detached waiter
+  144224 (`scripts/switchover.sh`) kills the SIGSTOPped old run_all (125670)
+  and launches `scripts/sweep_1p5b_trim.sh` (GPU0 half: full grid 8 pts +
+  steer_only alphas, n=4) -> log runs/logs/run_1p5b.log.
+- GPU1: 7B dev point (PID 136154). On exit, waiter 144225 kills stopped 134850
+  and launches `scripts/gpu1_1p5b_noop_and_baselines.sh` (vLLM dev baselines
+  -> exit_only grid 8 pts -> noop dev -> noop TEST 8 seeds) -> log
+  runs/logs/gpu1_noop_baselines.log.
+- Progress prints: run_controller now logs `N/M rollouts` lines (flush) for
+  every point launched after 02:30 UTC.
+- If a pipeline dies: relaunch the SAME script with the env above (all points
+  skip-by-policy-hash; stages skip by stage.done). If a process freezes
+  (0 CPU ticks >15 min): py-spy dump (sudo), then kill -9 it — known one-time
+  vLLM teardown hang is already patched (exit_stage), but check first.
+
+Next actions when sweep halves finish (order):
+1. `RC_SPLIT=dev python -m reasoncontrol.stages.analyze --config configs/base.yaml`
+2. 1-SE rule on POOLED dev (math_train+gsm8k) per family -> pick (tau*, K*)
+   for full and exit_only. Selection on dev ONLY.
+3. Test runs, 8 seeds, both GPUs in parallel (noop test may already be done):
+   `for S in 0..7: RC_SPLIT=test python -m reasoncontrol.stages.run_controller
+   --config configs/base.yaml --set seed=$S --set policy.kind=<full|exit_only>
+   --set policy.tau_exit=<T*> --set policy.patience_k=<K*>
+   --set gen.n_rollouts=1 --set datasets='[math500,gsm8k,aime,gpqa_diamond]'`
+   plus the SAME 8-seed pattern for run_baselines at dev-selected budgets.
+4. 7B transfer: repeat the selected points with `--config configs/base.yaml
+   configs/models/r1_qwen_7b.yaml` (dev confirm at tau* neighbors optional,
+   then 8-seed test). 7B does NOT get its own grid (walltime; documented
+   deviation).
+5. Steering acceptance (steering/validate.py; needs >=200 paired dev rollouts,
+   upper CI accuracy drop < 2% AND judge-verified phase shift), then the
+   pre-registered D6 decision (steer <5% of exit-only savings -> exit-led
+   headline).
+6. `interp` stage (logit lens/SAE) on a free GPU slot; then final analyze on
+   test + cluster bootstrap; write paper numbers.
+
+Known-good facts: D4 GO both models (1.5B AUC .882/L15 margin .147; 7B .854/
+L18 margin .246). Kappas ~.43-.52 (report as caveat). Offline gpqa rollouts
+exist but are unused (eval-only anchor). Do NOT edit scripts/run_all_1p5b.sh
+while any bash is executing it; write a new script file instead.
+
 ## Progress log (append below, newest first)
 
 - 2026-07-29 (overnight): **7B D4 gate = GO** (`conv AUC=0.854 at L18; min
