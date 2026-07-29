@@ -84,6 +84,17 @@ concise_prompt, trial_decode). ~2.5–3 h per controller point (HF loop).
 
 RESULTS: (fill from `RC_SPLIT=dev analyze` when both sweep halves land)
 
+First banked points (full, tau=0.7, K=1, n=4 — acc / mean think tokens):
+
+| model | MATH-train dev | GSM8K dev |
+|---|---|---|
+| 1.5B | 0.482 / 5,265 | 0.615 / 2,351 |
+| 7B   | 0.606 / 2,045 | 0.840 / 717   |
+
+(7B reaches higher accuracy at ~2.5-3x fewer think tokens under the same
+aggressive exit point — consistent with better-calibrated confidence at scale;
+noop references pending for the delta columns.)
+
 - [ ] full-family dev Pareto (acc vs mean think tokens) table
 - [ ] exit_only dev Pareto table
 - [ ] steer_only dev effects + paired acceptance inputs
