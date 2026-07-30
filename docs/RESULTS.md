@@ -95,7 +95,80 @@ First banked points (full, tau=0.7, K=1, n=4 — acc / mean think tokens):
 (7B reaches higher accuracy at ~2.5-3x fewer think tokens under the same
 aggressive exit point — consistent with better-calibrated confidence at scale.)
 
-**1.5B dev picture as of Jul 30 (headline-relevant, mostly negative):**
+## ⚠ MEASUREMENT DEFECT FOUND 2026-07-30 — everything below the "dev picture"
+## heading is SUPERSEDED by the corrected tables in this section
+
+Two grading defects were found while auditing a below-chance GPQA number
+(0.177 and 0.121 vs 0.25 MCQ chance). Both are measurement-only: no rollout
+was regenerated, and the fix is an offline re-grade of stored text
+(`scripts/regrade.py` -> `runs/<model>/analysis/regrade_{records.parquet,
+summary.csv}`). Originals are never modified.
+
+1. **Answer-extraction miss.** `extract_answer` required `\boxed{}`,
+   "answer is X", or `(A)`. R1-distill emits "**Answer:** X" / "Answer: C"
+   in ~20-25% of completions (~60% on GPQA). Those were scored INCORRECT.
+   Fixed in `data/grading.py` (strict tier = boxed / "answer is" / explicit
+   answer marker; opt-in permissive tier = last expression on the final line,
+   for completions truncated before committing). 51/51 tests pass, including
+   regression tests that boxed and "answer is" behaviour is unchanged.
+2. **Asymmetric answer budget (the "engine gap" was an artifact).** The HF
+   controller loop stops at `gen.max_answer_tokens`=512 (`loop.py:430`) while
+   the vLLM baseline path passes `max_think + max_answer` as ONE joint budget
+   (`baselines.py:45`), so baselines could write thousands of answer tokens
+   while the controller was cut at 512. Verbose conditions (noop, whose
+   post-`</think>` recap is long) lost their answers to truncation.
+   **With the 512 budget enforced on both engines, HF-noop = 0.703 and
+   vLLM-noop = 0.704 on MATH dev — the engines agree to 0.001.** The
+   "0.16 engine gap" reported earlier on Jul 30 is RETRACTED; it was entirely
+   answer-budget truncation. Cross-engine numerics are not a confound.
+   Note the controller's exit suffix is only `"\n</think>\n\n"` (loop.py:166)
+   — exit_only gets no privileged answer elicitation, so the prompting is
+   fair; noop truncates more because longer traces produce longer recaps.
+
+**Corrected MATH-train dev (matched 512-token answer budget, fixed
+extractor) — acc / mean think tokens:**
+
+| condition | as-run (buggy) | corrected | think |
+|---|---|---|---|
+| exit_only tau.7/K2 | 0.682 | **0.812** | 2260 |
+| exit_only tau.7/K1 | 0.660 | **0.777** | 1707 |
+| static_budget B=4096 | 0.731 | 0.739 | 2593 |
+| vLLM noop | 0.865 | 0.704 | 4529 |
+| HF noop | 0.701 | 0.703 | 4470 |
+| full (exit+steer) | 0.482 | 0.588 | 5265 |
+
+GSM8K dev corrects even more sharply: exit_only 0.475-0.680 -> 0.835-0.890
+(HF-noop 0.940 unchanged). **The earlier claim "exit_only loses 0.26-0.46 acc
+on GSM8K" is RETRACTED — it was extraction, not policy.**
+
+**Corrected 1-SE selection (pooled MATH+GSM8K dev, matched budget):**
+exit_only picks **079322feb6 = tau*=0.7, K*=2 (pooled 0.817 @ 1909 tokens)**,
+NOT the tau0.7/K1 point chosen under buggy grading; static_budget picks
+974b1c9039 (B=2048, 0.772 @ 1588); budget_prompt 0.734 @ 3776 (it barely
+restrains thinking, so it is an accuracy control, not an efficiency baseline).
+Pooled noop at matched budget ~0.750 @ ~3860.
+
+**Headline now depends on the answer budget, so the budget must be fixed:**
+- At the matched 512-token budget (as pre-registered), exit_only *dominates*:
+  0.817 @ 1909 vs noop 0.750 @ 3860 and static_budget 0.772 @ 1588.
+- At an adequate budget (no truncation), noop rises to ~0.884 pooled
+  (vLLM, unconstrained answers) while exit_only, which truncates in ~10% of
+  MATH rollouts, would rise less — plausibly ~0.83. Then exit_only trades
+  ~0.05 accuracy for ~50-60% fewer think tokens and still Pareto-dominates
+  static_budget.
+A 512-token cap that truncates ~20% of the *control's* answers is a fatal
+review comment either way, so the remaining runs move to
+`gen.max_answer_tokens=2048` (above the observed p99 answer length ~900
+tokens, so NEITHER engine truncates and the joint-budget asymmetry becomes
+moot without changing baseline code). The 512-budget dev sweep is retained
+as a robustness appendix.
+
+**Consequence for the in-flight test phase:** it was running the
+buggy-grading operating point (tau0.7/K1) at the 512 budget, so it is being
+restarted at the corrected point (tau0.7/K2) with the 2048 budget. Selection
+remains dev-only; the test split is still evaluated once per selected point.
+
+**1.5B dev picture as of Jul 30 (SUPERSEDED — retained for provenance):**
 
 - exit_only is FLAT in tau on MATH-train dev: 0.660@1707 (t.7K1),
   0.682@2260 (t.7K2), 0.627@2214 (t.8K1), 0.637@2752 (t.8K2), 0.646@2783

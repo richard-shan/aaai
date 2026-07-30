@@ -31,8 +31,57 @@ def extract_boxed(text: str) -> str | None:
     return last
 
 
-def extract_answer(text: str, style: str = "math") -> str | None:
-    """Final answer from a completed generation (post-</think> region if present)."""
+# "Answer: X", "**Answer:** X", "ANSWER - X", "final answer: X" — an explicit
+# answer marker, which R1-distill emits instead of \boxed{} in ~20-25% of
+# completions. Kept separate from the permissive fallback below so the paper can
+# report which extraction tier a number came from.
+_ANS_MARKER = re.compile(
+    r"(?:final\s+)?answer\s*\**\s*[:\-—]\s*\**\s*(.+)", re.I)
+_ANS_MARKER_MCQ = re.compile(
+    r"(?:final\s+)?(?:answer|option)\s*(?:is)?\s*\**\s*[:\-—]?\s*"
+    r"\**\s*\(?([A-D])\b", re.I)
+
+
+def _last_line(text: str) -> str | None:
+    """Last non-empty line that could carry an answer (has a digit or latex)."""
+    for ln in reversed(text.splitlines()):
+        if ln.strip() and re.search(r"\d|\\", ln):
+            return ln
+    return None
+
+
+def _reduce_to_expression(seg: str) -> str | None:
+    """Reduce a prose segment to its trailing math expression.
+
+    'The sixth term is 486.' -> '486'. Returns None when nothing parses, so a
+    marker followed by pure prose stays unparsed rather than guessing. Done here
+    (not in answers_equal, which also grades convergence labels).
+    """
+    seg = seg.strip()
+    if not seg:
+        return None
+    try:
+        p = parse(seg)
+    except Exception:
+        return None
+    if not p:
+        return None
+    for item in reversed(p):
+        if isinstance(item, str) and item.strip():
+            return item.strip()
+    return str(p[0])
+
+
+def extract_answer(text: str, style: str = "math",
+                   permissive: bool = False) -> str | None:
+    """Final answer from a completed generation (post-</think> region if present).
+
+    Strict tier (default): \\boxed{...}, "answer is X", or an explicit answer
+    marker ("Answer: X"). Permissive tier additionally falls back to the last
+    mathematical expression on the final line (math-verify picks the trailing
+    expression), which recovers completions that were truncated by the answer
+    budget before committing. Report the tier alongside any accuracy number.
+    """
     if "</think>" in text:
         text = text.rsplit("</think>", 1)[1]
     if style == "mcq":
@@ -47,16 +96,42 @@ def extract_answer(text: str, style: str = "math") -> str | None:
             pass
         if m:
             return m.group(1)
+        m = None
+        for m in _ANS_MARKER_MCQ.finditer(text):
+            pass
+        if m:
+            return m.group(1)
         m = re.match(r"\s*\(?([A-D])\)?\s*$", text.strip())
-        return m.group(1) if m else None
+        if m:
+            return m.group(1)
+        if permissive:
+            last = _last_line(text)
+            m = None
+            for m in re.finditer(r"\b([A-D])\b", last or ""):
+                pass
+            if m:
+                return m.group(1)
+        return None
     boxed = extract_boxed(text)
     if boxed is not None:
         return boxed.strip()
-    # fallback: last "answer is X" pattern
+    # "answer is X"
     m = None
-    for m in re.finditer(r"answer is[:\s]*([^\n.]+)", text, flags=re.I):
+    for m in re.finditer(r"answer is[:\s]*([^\n]+)", text, flags=re.I):
         pass
-    return m.group(1).strip() if m else None
+    if m:
+        return m.group(1).strip().rstrip(".")
+    # explicit answer marker; latex delimiters are preserved so math-verify can
+    # parse "\(3\sqrt{13}\)" rather than degrading to "3"
+    m = None
+    for m in _ANS_MARKER.finditer(text):
+        pass
+    if m:
+        return _reduce_to_expression(m.group(1))
+    if permissive:
+        last = _last_line(text)
+        return _reduce_to_expression(last) if last else None
+    return None
 
 
 def extract_forced_answer(generated: str, style: str = "math") -> str | None:
