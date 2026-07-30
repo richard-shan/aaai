@@ -103,7 +103,23 @@ aggressive exit point — consistent with better-calibrated confidence at scale.
   accuracy, and sits BELOW static_budget (0.731@2593) and vLLM-noop
   (0.865@4529). Key caveat: controller numbers are HF-loop, baselines are
   vLLM (cross-engine sampled agreement ~0.9); the same-engine HF-noop dev
-  reference (queued) decides how much of the gap is engine vs policy.
+  reference decides how much of the gap is engine vs policy.
+- **HF-noop dev reference landed (Jul 30): MATH-train dev acc=0.701 @ 4470
+  mean think tokens** (hash 888caea894; GSM8K half still running). The
+  HF-loop engine itself scores 0.164 BELOW vLLM-noop (0.701 vs 0.865) at
+  essentially the same token budget — i.e. most of the exit_only-vs-baseline
+  gap above is ENGINE, not policy. Same-engine comparison, MATH dev:
+  exit_only t.7/K2 = 0.682@2260 vs HF-noop 0.701@4470 — **-0.019 acc for
+  -49% think tokens**; t.7/K1 = 0.660@1707 — -0.041 acc for -62% tokens.
+  This substantially revives the exit-led headline (near-iso-accuracy early
+  exit within-engine), makes the pre-registered same-engine test comparison
+  (HF-noop 3 seeds vs exit_only 8 seeds) the primary within-engine check, and
+  reframes the cross-engine gap as an implementation/deployment caveat rather
+  than a policy failure. It also sharpens the closed-loop audit reading:
+  "realized ~0.65-0.70 acc on exited rollouts" ≈ the HF engine's own noop
+  ceiling (0.701), not probe damage. Cross-engine accuracy claims stay off
+  the table per protocol; the paper's non-inferiority endpoint must be
+  engine-matched.
 - full (exit+steer) is flat-bad: 0.476-0.482 on MATH across tau — steering
   costs ~0.15 acc vs exit_only at matched tau AND inflates tokens. D6
   exit-led re-headline is the expected outcome (formal acceptance pending).
