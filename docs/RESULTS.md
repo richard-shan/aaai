@@ -82,7 +82,8 @@ MATH-train dev + GSM8K dev; steer_only alpha {3,6,9}; noop reference; vLLM
 baselines (static_budget / budget_prompt B {1024,2048,4096,8192},
 concise_prompt, trial_decode). ~2.5–3 h per controller point (HF loop).
 
-RESULTS: (fill from `RC_SPLIT=dev analyze` when both sweep halves land)
+RESULTS: (fill from `RC_SPLIT=dev analyze` when both sweep halves land;
+running machine-generated record: docs/AUTOLOG.md)
 
 First banked points (full, tau=0.7, K=1, n=4 — acc / mean think tokens):
 
@@ -92,8 +93,28 @@ First banked points (full, tau=0.7, K=1, n=4 — acc / mean think tokens):
 | 7B   | 0.606 / 2,045 | 0.840 / 717   |
 
 (7B reaches higher accuracy at ~2.5-3x fewer think tokens under the same
-aggressive exit point — consistent with better-calibrated confidence at scale;
-noop references pending for the delta columns.)
+aggressive exit point — consistent with better-calibrated confidence at scale.)
+
+**1.5B dev picture as of Jul 30 (headline-relevant, mostly negative):**
+
+- exit_only is FLAT in tau on MATH-train dev: 0.660@1707 (t.7K1),
+  0.682@2260 (t.7K2), 0.627@2214 (t.8K1), 0.637@2752 (t.8K2), 0.646@2783
+  (t.9K1), 0.635@3353 (t.9K2) — raising the exit threshold buys tokens but no
+  accuracy, and sits BELOW static_budget (0.731@2593) and vLLM-noop
+  (0.865@4529). Key caveat: controller numbers are HF-loop, baselines are
+  vLLM (cross-engine sampled agreement ~0.9); the same-engine HF-noop dev
+  reference (queued) decides how much of the gap is engine vs policy.
+- full (exit+steer) is flat-bad: 0.476-0.482 on MATH across tau — steering
+  costs ~0.15 acc vs exit_only at matched tau AND inflates tokens. D6
+  exit-led re-headline is the expected outcome (formal acceptance pending).
+- **Closed-loop calibration audit** (runs/r1_qwen_1p5b/analysis/
+  closed_loop_audit.json; probe = conv_matches_final, self-supervised):
+  rollouts that exited did so at mean claimed p~0.83-0.95 but realized only
+  ~0.65-0.70 accuracy — the settle-detector is severely overconfident under
+  intervention despite on-policy ECE~0.02. Cap-hitting rollouts are near-zero
+  accuracy (0.00-0.26; full-policy cap-hitters ~0.01, i.e. long-horizon
+  steering destroys traces). This is the mechanistic explanation for the flat
+  Pareto curve and a headline-grade honest-negative analysis for the paper.
 
 - [ ] full-family dev Pareto (acc vs mean think tokens) table
 - [ ] exit_only dev Pareto table
@@ -125,3 +146,21 @@ noop references pending for the delta columns.)
    monolithic prepare_data run; manifest is the frozen source of truth).
 5. Stray offline GPQA rollouts exist (relaunch artifact); unused by any
    analysis.
+6. HF-loop noop runs use `policy.min_chunks=5` (behaviorally inert for noop)
+   solely to disambiguate the policy hash from the vLLM baseline noop
+   (identical cfg -> identical hash -> silent skip of one engine's results).
+7. Full-policy dev grid futility-trimmed 8 -> 5 points (0.7/0.8 x K1/K2 +
+   0.9/K1): dev curve flat at 0.476-0.482 and strictly dominated; 0.9/K2 and
+   both 0.95 points cut (walltime/billing).
+8. HF-loop noop TEST reference trimmed 8 -> 3 seeds; it is an engine control
+   only — the headline noop comparison uses the 8-seed vLLM runs.
+9. 7B transfer scope: exit_only @ 1.5B-selected point x 4 seeds + vLLM
+   noop/static_budget@B* x 4 seeds + 1 HF-noop seed (engine-gap estimate).
+   Full 8-seed treatment reserved for the 1.5B primary endpoint.
+10. AIME test runs execute in a separate invocation at the 24k think cap with
+    reduced batch (32 for 1.5B, 16 for 7B — KV-cache memory); other test sets
+    at the standard 16k cap, matching the plan's per-dataset caps.
+11. Steering acceptance: regex phase-rate shift computed on paragraph-split
+    chunks (approximation) as a screen; the pre-registered judge-verified
+    shift is required (and will be run) only if the paired accuracy gate
+    passes. Full policy runs on test ONLY if acceptance passes.

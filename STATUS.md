@@ -54,52 +54,41 @@ NOT DONE (this container was CPU-only with huggingface.co blocked):
 - Pre-registered D6 decision: if steering adds < 5% of exit-only's token
   savings at matched accuracy, re-headline exit-led (see plan §Direction).
 
-## LIVE OPERATIONS (2026-07-29 03:55 UTC — read this first on session restart)
+## LIVE OPERATIONS (2026-07-30 04:00 UTC — read this first on session restart)
 
-Everything below survives a Claude/session crash: pipelines + switchover
-waiters run under `nohup setsid`. Logs: `runs/logs/`. HF token: `~/.hf_token`
-(0600; wired, GPQA access verified). Env for ALL launches:
-`PATH=/home/ubuntu/venvs/rc/bin:$PATH HF_HOME=/home/ubuntu/hf HF_TOKEN=$(cat
-~/.hf_token) TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=<0|1>
-PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`.
+**A single detached AUTOPILOT now owns everything** (user is away; run to
+completion, then notify). `scripts/autopilot.sh` (launched 03:56 UTC, session
+leader PID 171355, chains 171359/171360) sequences BOTH GPU queues end-to-end:
+remaining dev sweeps -> 1-SE selection (`scripts/select_operating_points.py`)
++ closed-loop audit -> steering acceptance + D6 (`scripts/steering_acceptance.py`)
+-> test runs (exit_only 8 seeds; vLLM baselines 8 seeds; HF-noop 3 seeds;
+full 8 seeds ONLY if steering accepted) -> 7B transfer (4 seeds) -> interp ->
+final analyze. It commits+pushes at every milestone
+(`scripts/autopilot_snapshot.sh` -> docs/AUTOLOG.md) and finishes by
+committing **EXPERIMENTS_DONE.md** at the repo root (the user's signal to
+terminate the GPU instance).
 
-Running now (check `pgrep -af "run_controller|run_baselines|switchover"`):
-- GPU0: 1.5B dev point full/tau=.7/K=1 n=4 (PID 126632, started 01:06 UTC,
-  ~2.5-3h/point is NORMAL — HF closed loop). When it exits, detached waiter
-  144224 (`scripts/switchover.sh`) kills the SIGSTOPped old run_all (125670)
-  and launches `scripts/sweep_1p5b_trim.sh` (GPU0 half: full grid 8 pts +
-  steer_only alphas, n=4) -> log runs/logs/run_1p5b.log.
-- GPU1: 7B dev point (PID 136154). On exit, waiter 144225 kills stopped 134850
-  and launches `scripts/gpu1_1p5b_noop_and_baselines.sh` (vLLM dev baselines
-  -> exit_only grid 8 pts -> noop dev -> noop TEST 8 seeds) -> log
-  runs/logs/gpu1_noop_baselines.log.
-- Progress prints: run_controller now logs `N/M rollouts` lines (flush) for
-  every point launched after 02:30 UTC.
-- If a pipeline dies: relaunch the SAME script with the env above (all points
-  skip-by-policy-hash; stages skip by stage.done). If a process freezes
-  (0 CPU ticks >15 min): py-spy dump (sudo), then kill -9 it — known one-time
-  vLLM teardown hang is already patched (exit_stage), but check first.
+Logs: `runs/logs/autopilot{,_gpu0,_gpu1}.log`. Failures append to
+`runs/AUTOPILOT_FAILURES` (each step auto-retries once, then the chain moves
+on). Done marker: `runs/AUTOPILOT_DONE`.
 
-Next actions when sweep halves finish (order):
-1. `RC_SPLIT=dev python -m reasoncontrol.stages.analyze --config configs/base.yaml`
-2. 1-SE rule on POOLED dev (math_train+gsm8k) per family -> pick (tau*, K*)
-   for full and exit_only. Selection on dev ONLY.
-3. Test runs, 8 seeds, both GPUs in parallel (noop test may already be done):
-   `for S in 0..7: RC_SPLIT=test python -m reasoncontrol.stages.run_controller
-   --config configs/base.yaml --set seed=$S --set policy.kind=<full|exit_only>
-   --set policy.tau_exit=<T*> --set policy.patience_k=<K*>
-   --set gen.n_rollouts=1 --set datasets='[math500,gsm8k,aime,gpqa_diamond]'`
-   plus the SAME 8-seed pattern for run_baselines at dev-selected budgets.
-4. 7B transfer: repeat the selected points with `--config configs/base.yaml
-   configs/models/r1_qwen_7b.yaml` (dev confirm at tau* neighbors optional,
-   then 8-seed test). 7B does NOT get its own grid (walltime; documented
-   deviation).
-5. Steering acceptance (steering/validate.py; needs >=200 paired dev rollouts,
-   upper CI accuracy drop < 2% AND judge-verified phase shift), then the
-   pre-registered D6 decision (steer <5% of exit-only savings -> exit-led
-   headline).
-6. `interp` stage (logit lens/SAE) on a free GPU slot; then final analyze on
-   test + cluster bootstrap; write paper numbers.
+If the autopilot dies (box reboot etc.): relaunch with NO args —
+`cd /lambda/nfs/aaai/aaai && nohup setsid bash scripts/autopilot.sh
+>> runs/logs/autopilot.log 2>&1 < /dev/null & disown` — every step is
+idempotent (per-dataset results files under policy-hash dirs). If a stage
+python freezes (no CPU ticks >30 min): py-spy dump (sudo), kill -9 it; the
+autopilot retry relaunches it. HF token: `~/.hf_token`. Env is set inside the
+script.
+
+KNOWN TRAP (fixed in autopilot, do not regress): the HF-loop controller noop
+has the SAME policy hash (2217fed51d) as the vLLM baseline noop, so one
+silently skips the other's results files. All HF-loop noop runs therefore pass
+`--set policy.min_chunks=5` (behaviorally inert for noop; hash 888caea894) —
+steering acceptance and the engine-gap analysis depend on this distinction.
+
+A Claude session (if alive) watches the logs + runs a 6-hourly heartbeat cron
+and push-notifies the user on completion; the durable fallback is the
+EXPERIMENTS_DONE.md commit on GitHub main.
 
 Known-good facts: D4 GO both models (1.5B AUC .882/L15 margin .147; 7B .854/
 L18 margin .246). Kappas ~.43-.52 (report as caveat). Offline gpqa rollouts
