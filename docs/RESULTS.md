@@ -111,15 +111,30 @@ aggressive exit point — consistent with better-calibrated confidence at scale.
   gap above is ENGINE, not policy. Same-engine comparison, MATH dev:
   exit_only t.7/K2 = 0.682@2260 vs HF-noop 0.701@4470 — **-0.019 acc for
   -49% think tokens**; t.7/K1 = 0.660@1707 — -0.041 acc for -62% tokens.
-  This substantially revives the exit-led headline (near-iso-accuracy early
-  exit within-engine), makes the pre-registered same-engine test comparison
-  (HF-noop 3 seeds vs exit_only 8 seeds) the primary within-engine check, and
-  reframes the cross-engine gap as an implementation/deployment caveat rather
-  than a policy failure. It also sharpens the closed-loop audit reading:
+  This substantially revives the exit-led headline ON MATH (near-iso-accuracy
+  early exit within-engine), makes the pre-registered same-engine test
+  comparison (HF-noop 3 seeds vs exit_only 8 seeds) the primary within-engine
+  check, and reframes much of the cross-engine gap as an implementation/
+  deployment caveat. It also sharpens the closed-loop audit reading on MATH:
   "realized ~0.65-0.70 acc on exited rollouts" ≈ the HF engine's own noop
-  ceiling (0.701), not probe damage. Cross-engine accuracy claims stay off
-  the table per protocol; the paper's non-inferiority endpoint must be
-  engine-matched.
+  ceiling (0.701). Cross-engine accuracy claims stay off the table per
+  protocol; the paper's non-inferiority endpoint must be engine-matched.
+- **BUT the engine gap is dataset-dependent — GSM8K tells the opposite story
+  (HF-noop gsm8k/dev acc=0.940 @ 1417 vs vLLM-noop 0.960 @ 1308, gap only
+  0.02):** same-engine, exit_only loses 0.26-0.46 acc on GSM8K (best point
+  0.680@426 t.7K1 vs noop 0.940@1417). On short/easy traces where the base
+  engine is fine, premature exit driven by the overconfident settle-detector
+  genuinely destroys accuracy; on long MATH traces the HF engine itself is
+  the binding constraint and exit is near-free. Honest summary for the paper:
+  early exit is near-iso-accuracy at ~half the tokens on MATH (within
+  engine), harmful on GSM8K, and the probe's off-policy overconfidence
+  (closed-loop audit) is the mechanism for the GSM8K failure.
+- **1-SE dev selection (pooled MATH+GSM8K dev, runs/r1_qwen_1p5b/analysis/
+  selection_dev.json):** exit_only picks tau*=0.7, K*=1 (pooled 0.664@1451);
+  static_budget B*=4096 (0.770@2319); budget_prompt B*=1024 (0.873@3776,
+  pooled — note budget_prompt barely restrains tokens, it's accuracy-
+  preserving but not a real efficiency baseline). Pooled same-engine
+  HF-noop reference ≈ 0.749 @ ~3860. Test phase runs at these points.
 - full (exit+steer) is flat-bad: 0.476-0.482 on MATH across tau — steering
   costs ~0.15 acc vs exit_only at matched tau AND inflates tokens. D6
   exit-led re-headline is the expected outcome (formal acceptance pending).
