@@ -264,7 +264,28 @@ remains dev-only; the test split is still evaluated once per selected point.
 10. AIME test runs execute in a separate invocation at the 24k think cap with
     reduced batch (32 for 1.5B, 16 for 7B — KV-cache memory); other test sets
     at the standard 16k cap, matching the plan's per-dataset caps.
-11. Steering acceptance: regex phase-rate shift computed on paragraph-split
+12. **Grading defect fixed mid-run (2026-07-30, pre-test-completion).**
+    `extract_answer` missed the "**Answer:** X" form; all stored rollouts were
+    re-graded offline from stored text (`scripts/regrade.py`). No rollout was
+    regenerated and no original file was modified. The strict tier (boxed /
+    "answer is" / explicit answer marker) is primary; a permissive
+    last-expression tier is reported only as a robustness check.
+13. **Answer budget raised 512 -> 2048 for all runs after 22:12 UTC Jul 30.**
+    The 512 cap was enforced on the HF controller but not on the vLLM
+    baselines, truncating verbose conditions' answers. 2048 exceeds the
+    observed p99 answer length (~900 tokens) so neither engine truncates.
+    Dev sweeps stay at 512 (re-graded with the budget enforced on both engines
+    for a matched comparison); a 2048 dev control re-runs noop and
+    exit_only@selected so the cap's effect is measured, not assumed.
+14. **Operating point re-selected on corrected grades** (dev-only, same 1-SE
+    rule): exit_only tau*=0.7 K*=2 (was K*=1), static_budget B*=2048 (was
+    4096). The two v1 test seeds at the old point (hash cbb8895c16, 512
+    budget) are retained as a robustness datapoint, not the primary endpoint.
+15. steer_only dev sweep trimmed to alpha=3 (from {3,6,9}): with corrected
+    grading the full policy is 0.59-0.64 vs exit_only 0.78-0.82 on MATH dev,
+    so the remaining alphas are futile; alpha=3 still carries the
+    pre-registered paired acceptance test.
+16. Steering acceptance: regex phase-rate shift computed on paragraph-split
     chunks (approximation) as a screen; the pre-registered judge-verified
     shift is required (and will be run) only if the paired accuracy gate
     passes. Full policy runs on test ONLY if acceptance passes.

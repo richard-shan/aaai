@@ -54,11 +54,44 @@ NOT DONE (this container was CPU-only with huggingface.co blocked):
 - Pre-registered D6 decision: if steering adds < 5% of exit-only's token
   savings at matched accuracy, re-headline exit-led (see plan §Direction).
 
-## LIVE OPERATIONS (2026-07-30 04:00 UTC — read this first on session restart)
+## LIVE OPERATIONS (2026-07-30 22:12 UTC — read this first on session restart)
 
-**A single detached AUTOPILOT now owns everything** (user is away; run to
-completion, then notify). `scripts/autopilot.sh` (launched 03:56 UTC, session
-leader PID 171355, chains 171359/171360) sequences BOTH GPU queues end-to-end:
+**AUTOPILOT v2 (`scripts/autopilot2.sh`) is what is running now.** v1 was
+stopped at 22:10 UTC after a grading defect was found (see docs/RESULTS.md
+"MEASUREMENT DEFECT"): the answer extractor missed "**Answer:** X" (~20-25% of
+completions) and the answer budget was enforced on the HF controller (512) but
+not on the vLLM baselines (joint budget). Consequences, all handled:
+- All stored rollouts are re-gradable offline — `scripts/regrade.py` (no GPU,
+  originals untouched). Corrected numbers reverse the headline: exit_only
+  0.817 @ 1909 think tokens vs noop 0.750 @ 3860 pooled dev.
+- The 1-SE selection was redone on corrected grades
+  (`scripts/select_from_regrade.py`): exit_only tau*=0.7 **K*=2** (was K*=1),
+  static_budget B*=2048 (was 4096). Old file kept as
+  `selection_dev.buggy_grading.json`.
+- All remaining runs use `gen.max_answer_tokens=2048` (above the p99 answer
+  length ~900 tok) so neither engine truncates.
+- v1 test artifacts under hash `cbb8895c16` (tau0.7/K1, 512 budget, seeds 0-1)
+  are superseded but retained as a robustness datapoint.
+
+NEW HASH TRAP (in addition to the noop/vLLM one): `policy_hash` covers
+PolicyCfg only, NOT `gen.*`, so a 2048-budget rerun of an existing policy
+silently skips the 512-budget file. v2 disambiguates with inert overrides —
+HF noop `min_chunks=6` (v1 used 5), and `policy.alpha=6.5` for the 2048
+exit_only DEV control (alpha is inert: ExitOnlyPolicy has `use_steer=False`).
+
+Relaunch v2 after any crash (idempotent, no args):
+`cd /lambda/nfs/aaai/aaai && nohup setsid bash scripts/autopilot2.sh >> runs/logs/autopilot.log 2>&1 < /dev/null & disown`
+
+v2 sequence — GPU0: (wait for steer alpha=3) -> 2048 answer-budget dev control
+(noop + exit_only@selected) -> steering acceptance/D6 -> exit_only test seeds
+4-7 -> HF-noop test 3 seeds -> interp 1.5B. GPU1: exit_only test seeds 0-3 ->
+vLLM baseline test suite (8 seeds) -> 7B transfer + refs -> interp 7B. Then
+regrade both models -> analyze -> EXPERIMENTS_DONE.md. steer_only alphas 6/9
+dropped (futility: full policy 0.59-0.64 vs exit_only 0.78-0.82 corrected).
+
+---
+Historical (v1, superseded): `scripts/autopilot.sh` (launched 03:56 UTC,
+session leader PID 171355, chains 171359/171360) sequenced BOTH GPU queues:
 remaining dev sweeps -> 1-SE selection (`scripts/select_operating_points.py`)
 + closed-loop audit -> steering acceptance + D6 (`scripts/steering_acceptance.py`)
 -> test runs (exit_only 8 seeds; vLLM baselines 8 seeds; HF-noop 3 seeds;

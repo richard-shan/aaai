@@ -1,0 +1,56 @@
+{
+  "families": {
+    "exit_only": {
+      "phash": "cbb8895c16",
+      "acc": 0.664,
+      "se": 0.022099083191654052,
+      "tokens": 1450.743,
+      "n_problems": 250,
+      "params": {
+        "tau_exit": 0.7,
+        "patience_k": "1",
+        "alpha": 6.0,
+        "budget": "4096"
+      },
+      "one_se_threshold": 0.6424064564163732,
+      "best_acc": 0.664,
+      "best_se": 0.021593543583626845,
+      "n_configs": 8
+    },
+    "static_budget": {
+      "phash": "c2477df0fe",
+      "acc": 0.77,
+      "se": 0.021685966072508552,
+      "tokens": 2318.73,
+      "n_problems": 250,
+      "params": {
+        "tau_exit": 0.9,
+        "patience_k": "2",
+        "alpha": 6.0,
+        "budget": "4096"
+      },
+      "one_se_threshold": 0.7483140339274915,
+      "best_acc": 0.77,
+      "best_se": 0.021685966072508552,
+      "n_configs": 4
+    },
+    "budget_prompt": {
+      "phash": "ce42341dc5",
+      "acc": 0.873,
+      "se": 0.01672131602591597,
+      "tokens": 3775.868,
+      "n_problems": 250,
+      "params": {
+        "tau_exit": 0.9,
+        "patience_k": "2",
+        "alpha": 6.0,
+        "budget": "1024"
+      },
+      "one_se_threshold": 0.856278683974084,
+      "best_acc": 0.873,
+      "best_se": 0.01672131602591597,
+      "n_configs": 4
+    }
+  },
+  "generated_utc": "2026-07-30T17:19:28Z"
+}

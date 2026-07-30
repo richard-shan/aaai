@@ -1,0 +1,89 @@
+{
+  "families": {
+    "exit_only": {
+      "phash": "079322feb6",
+      "acc": 0.817,
+      "se": 0.018986467385353718,
+      "tokens": 1908.876,
+      "n_problems": 250,
+      "params": {
+        "tau_exit": 0.7,
+        "patience_k": 2,
+        "alpha": 6.0,
+        "budget": 4096
+      },
+      "tuned_params": {
+        "tau_exit": 0.7,
+        "patience_k": 2
+      },
+      "one_se_threshold": 0.7980135326146462,
+      "best_acc": 0.817,
+      "best_se": 0.018986467385353718,
+      "n_configs": 8
+    },
+    "full": {
+      "phash": "dac4beda09",
+      "acc": 0.62,
+      "se": 0.023249994602063544,
+      "tokens": 4682.456,
+      "n_problems": 250,
+      "params": {
+        "tau_exit": 0.7,
+        "patience_k": 1,
+        "alpha": 6.0,
+        "budget": 4096
+      },
+      "tuned_params": {
+        "tau_exit": 0.7,
+        "patience_k": 1
+      },
+      "one_se_threshold": 0.6188434656332817,
+      "best_acc": 0.643,
+      "best_se": 0.024156534366718288,
+      "n_configs": 5
+    },
+    "static_budget": {
+      "phash": "974b1c9039",
+      "acc": 0.772,
+      "se": 0.022850658862312204,
+      "tokens": 1587.821,
+      "n_problems": 250,
+      "params": {
+        "tau_exit": 0.9,
+        "patience_k": 2,
+        "alpha": 6.0,
+        "budget": 2048
+      },
+      "tuned_params": {
+        "budget": 2048
+      },
+      "one_se_threshold": 0.75536771340581,
+      "best_acc": 0.777,
+      "best_se": 0.02163228659419001,
+      "n_configs": 4
+    },
+    "budget_prompt": {
+      "phash": "ce42341dc5",
+      "acc": 0.734,
+      "se": 0.023690100960826164,
+      "tokens": 3775.868,
+      "n_problems": 250,
+      "params": {
+        "tau_exit": 0.9,
+        "patience_k": 2,
+        "alpha": 6.0,
+        "budget": 1024
+      },
+      "tuned_params": {
+        "budget": 1024
+      },
+      "one_se_threshold": 0.729063384002568,
+      "best_acc": 0.752,
+      "best_se": 0.022936615997432023,
+      "n_configs": 4
+    }
+  },
+  "accuracy_column": "correct_matched_strict",
+  "source": "runs/r1_qwen_1p5b/analysis/regrade_records.parquet",
+  "generated_utc": "2026-07-30T22:09:24Z"
+}
