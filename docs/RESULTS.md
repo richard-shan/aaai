@@ -148,7 +148,38 @@ NOT the tau0.7/K1 point chosen under buggy grading; static_budget picks
 restrains thinking, so it is an accuracy control, not an efficiency baseline).
 Pooled noop at matched budget ~0.750 @ ~3860.
 
-**Headline now depends on the answer budget, so the budget must be fixed:**
+### Answer-budget control (2026-07-31) — RESOLVES the budget question
+
+Re-ran the noop dev reference at `gen.max_answer_tokens=2048` (hash
+5391bd1826; the 512 run is 888caea894):
+
+| noop, MATH-train dev | acc | mean think |
+|---|---|---|
+| HF loop, 512-token answers | 0.703 | 4470 |
+| **HF loop, 2048-token answers** | **0.855** | 4663 |
+| vLLM, joint (effectively unlimited) answers | 0.865 | 4529 |
+
+The 512 cap was costing noop **0.152 accuracy**. At an adequate budget the two
+engines agree to 0.010 (0.855 vs 0.865) — a second, independent confirmation
+that there is no cross-engine accuracy gap, only a budget-enforcement bug.
+
+**This retracts the "exit_only dominates noop" reading** from the
+512-matched-budget tables above. Those tables are internally consistent (the
+same cap on both engines) but they systematically understate every condition
+whose answers run long — which is exactly the control condition. The 2048
+budget is therefore the primary, and the 512 tables become a robustness
+appendix. Expected corrected relationship, pending exit_only@2048 (running):
+exit_only ~0.81-0.84 @ ~2300 vs noop 0.855 @ 4663, i.e. a SMALL accuracy cost
+for ~50% fewer think tokens — while still clearly beating static_budget
+(0.740 @ 2593), whose vLLM baselines were never budget-limited.
+
+Known limitation to state in the paper: the operating point was selected on
+512-budget dev data (re-grading fixed the extractor but cannot un-truncate an
+answer). Re-selecting the whole grid at 2048 costs ~28 GPU-hours and was not
+affordable; instead the selected point is re-run at 2048 as a verification,
+and the selection's sensitivity to the cap is reported honestly.
+
+**Headline depends on the answer budget, so the budget must be fixed:**
 - At the matched 512-token budget (as pre-registered), exit_only *dominates*:
   0.817 @ 1909 vs noop 0.750 @ 3860 and static_budget 0.772 @ 1588.
 - At an adequate budget (no truncation), noop rises to ~0.884 pooled
