@@ -33,9 +33,22 @@ flock 9
   done
 } > docs/AUTOLOG.md
 
-git add docs/AUTOLOG.md STATUS.md docs/RESULTS.md EXPERIMENTS_DONE.md 2>/dev/null
-git add -f runs/r1_qwen_1p5b/analysis runs/r1_qwen_7b/analysis \
-           runs/AUTOPILOT_FAILURES runs/AUTOPILOT_DONE 2>/dev/null
-git commit -m "autopilot: ${MSG}" >/dev/null 2>&1
-git push origin main >/dev/null 2>&1 || { sleep 30; git push origin main; }
-echo "[snapshot $(date -u +%FT%TZ)] committed+pushed: ${MSG}"
+# NOTE: `git add a b missing` aborts and stages NOTHING. Add each path
+# separately so one absent artifact cannot silently skip the whole commit.
+for p in docs/AUTOLOG.md STATUS.md docs/RESULTS.md EXPERIMENTS_DONE.md; do
+  [ -e "$p" ] && git add "$p" 2>/dev/null
+done
+for p in runs/r1_qwen_1p5b/analysis runs/r1_qwen_7b/analysis \
+         runs/AUTOPILOT_FAILURES runs/AUTOPILOT_DONE; do
+  [ -e "$p" ] && git add -f "$p" 2>/dev/null
+done
+if git diff --cached --quiet; then
+  echo "[snapshot $(date -u +%FT%TZ)] nothing to commit: ${MSG}"
+else
+  if git commit -m "autopilot: ${MSG}" >/dev/null 2>&1; then
+    git push origin main >/dev/null 2>&1 || { sleep 30; git push origin main >/dev/null 2>&1; }
+    echo "[snapshot $(date -u +%FT%TZ)] committed+pushed: ${MSG}"
+  else
+    echo "[snapshot $(date -u +%FT%TZ)] COMMIT FAILED: ${MSG}"
+  fi
+fi

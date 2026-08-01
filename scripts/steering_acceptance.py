@@ -21,12 +21,60 @@ import numpy as np
 import pandas as pd
 
 from reasoncontrol.analysis.stats import paired_bootstrap
+from reasoncontrol.data.grading import extract_answer, grade
 from reasoncontrol.stages._stage import read_jsonl_zst
 from reasoncontrol.steering.validate import accept_steering, phase_rate_shift
 
 ROOT = Path("runs/r1_qwen_1p5b")
 DEV_DATASETS = ("math_train", "gsm8k")
 PHASES = ("verification", "backtracking", "deduction")
+MAX_ANSWER = 512   # matched answer budget; see scripts/regrade.py
+
+
+def _grader():
+    """Gold answers + tokenizer for matched-budget re-grading (cached).
+
+    The `correct` field stored in the result files was computed with the
+    pre-2026-07-30 extractor, which missed the "**Answer:** X" form, and under
+    an answer budget that differed across engines. Both arms of this gate are
+    therefore re-graded here with the fixed extractor at a common budget.
+    """
+    if getattr(_grader, "_cache", None) is None:
+        import glob
+
+        import pandas as pd
+        from transformers import AutoTokenizer
+        gold, style = {}, {}
+        for p in glob.glob("runs/data/manifests/*.parquet"):
+            d = pd.read_parquet(p)
+            ds = Path(p).stem
+            st = "mcq" if ds == "gpqa_diamond" else "math"
+            for pid, ga in zip(d["problem_id"], d["gold_answer"]):
+                gold[pid], style[pid] = ga, st
+        tok = AutoTokenizer.from_pretrained(
+            "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B")
+        enc = tok.encode("</think>", add_special_tokens=False)
+        _grader._cache = (gold, style, tok, enc[-1] if enc else None)
+    return _grader._cache
+
+
+def regrade(rec) -> bool:
+    gold, style, tok, close_id = _grader()
+    pid = rec["problem_id"]
+    g, st = gold.get(pid), style.get(pid, "math")
+    if g is None:
+        return bool(rec.get("correct"))
+    text = rec.get("text") or ""
+    ids = rec.get("output_token_ids") or []
+    if close_id is not None and ids:
+        try:
+            i = len(ids) - 1 - ids[::-1].index(close_id)
+        except ValueError:
+            i = None
+        if i is not None and len(ids) - i - 1 > MAX_ANSWER:
+            text = tok.decode(ids[i + 1:i + 1 + MAX_ANSWER],
+                              skip_special_tokens=False)
+    return bool(grade(extract_answer(text, style=st), g, style=st))
 
 
 def load_family(kind: str, hf_only: bool = True) -> dict:
@@ -46,7 +94,7 @@ def load_family(kind: str, hf_only: bool = True) -> dict:
                 frames.append(pd.DataFrame(
                     [{"problem_id": r["problem_id"],
                       "rollout_id": r["rollout_id"],
-                      "correct": float(r["correct"]),
+                      "correct": float(regrade(r)),
                       "n_think_tokens": float(r["n_think_tokens"]),
                       "text": r.get("text", "")} for r in recs]))
         if frames and pol is not None:
@@ -69,8 +117,13 @@ def main():
     if not noops:
         raise SystemExit("no HF-loop noop dev reference found "
                          "(needs the min_chunks=5-hashed controller noop run)")
-    _, noop_df = sorted(noops.items())[0]
-    res = {"alphas": {}, "any_accepted": False}
+    # load_family maps phash -> (policy, df); pick the reference with the most
+    # dev rollouts (ties broken by hash) so the choice is deterministic.
+    noop_phash, (_, noop_df) = max(sorted(noops.items()),
+                                   key=lambda kv: len(kv[1][1]))
+    res = {"alphas": {}, "any_accepted": False,
+           "noop_reference": {"phash": noop_phash, "n_rollouts": len(noop_df)},
+           "grading": f"fixed extractor, answer budget matched at {MAX_ANSWER}"}
     noop_paras = None
     for ph, (pol, df) in sorted(load_family("steer_only").items()):
         alpha = pol.get("alpha")
