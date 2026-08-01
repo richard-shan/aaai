@@ -38,7 +38,11 @@ flock 9
 for p in docs/AUTOLOG.md STATUS.md docs/RESULTS.md EXPERIMENTS_DONE.md; do
   [ -e "$p" ] && git add "$p" 2>/dev/null
 done
+# runs/analysis/<tag>/ is where the pipeline's own stages write (interp.json);
+# runs/<tag>/analysis/ is where the offline scripts write. Both must be saved:
+# runs/ is gitignored, so anything not force-added here dies with the instance.
 for p in runs/r1_qwen_1p5b/analysis runs/r1_qwen_7b/analysis \
+         runs/analysis \
          runs/AUTOPILOT_FAILURES runs/AUTOPILOT_DONE; do
   [ -e "$p" ] && git add -f "$p" 2>/dev/null
 done
