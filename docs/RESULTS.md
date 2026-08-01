@@ -199,6 +199,61 @@ buggy-grading operating point (tau0.7/K1) at the 512 budget, so it is being
 restarted at the corrected point (tau0.7/K2) with the 2048 budget. Selection
 remains dev-only; the test split is still evaluated once per selected point.
 
+#### Paired 2048-budget dev comparison — COMPLETE (2026-07-31 08:28 UTC)
+
+`exit_only` at the selected point (tau=0.7, K=2) re-ran at 2048 (hash
+84bc53aa11), giving the other half of the control. Same engine (HF loop),
+same budget, same problems:
+
+| MATH-train dev | acc | mean think | | GSM8K dev | acc | mean think |
+|---|---|---|---|---|---|---|
+| noop @2048 | 0.855 | 4663 | | noop @2048 | 0.920 | 1913 |
+| exit_only @2048 | 0.828 | 2223 | | exit_only @2048 | 0.825 | 501 |
+| delta | **-0.027** | **-52%** | | delta | **-0.095** | **-74%** |
+
+Pooled (800 MATH + 200 GSM8K dev rollouts): **exit_only 0.827 @ 1879 vs noop
+0.868 @ 4113 — -0.041 accuracy for -54% think tokens.**
+
+This is the honest headline and it lands between the two earlier readings:
+early exit is *not* free (the 512-budget tables that showed it dominating were
+an artifact), but it is also *not* the disaster the buggy extractor suggested.
+The dataset split from the 512 analysis survives correction: the cost is small
+on long MATH traces (-0.027) and concentrated on short GSM8K traces (-0.095),
+where the settle-detector's off-policy overconfidence (closed-loop audit)
+fires early on problems the model would have finished anyway.
+
+The 512-budget exit_only run at this same point, re-graded at a matched
+budget, gives 0.812 @ 2260 (MATH) / 0.835 @ 506 (GSM8K) — within noise of the
+2048 run, confirming exit_only's answers rarely hit the cap and that the
+selection made on 512 data transfers to the 2048 regime.
+
+### Steering acceptance + D6 — DECIDED (2026-08-01, dev only)
+
+`scripts/steering_acceptance.py` (re-graded with the fixed extractor at a
+matched 512-token answer budget on both arms; reference = HF-loop noop dev,
+hash 5391bd1826, 1000 rollouts):
+
+| steer_only alpha=3 vs HF-noop, 250 paired dev problems / 1000 rollouts | value |
+|---|---|
+| paired accuracy delta (steered - unsteered) | **-0.215** [-0.251, -0.180] |
+| max plausible accuracy drop (pre-registered margin 0.02) | **0.251** |
+| paired think-token delta | **+3583** [+3131, +4063] |
+| **acceptance** | **REJECTED** |
+
+Steering fails the gate by an order of magnitude, and it *costs* tokens rather
+than saving them, so the judge-verified phase-shift check is not run (it is
+gated on acceptance passing). The regex paragraph screen is reported for
+completeness and is itself the wrong sign: +alpha *lowered* the backtracking
+rate (0.163 vs 0.231, delta -0.068 [-0.074, -0.062]) while nudging deduction
+up (+0.026) and verification up (+0.007).
+
+**D6 (pre-registered) fires: EXIT-LED HEADLINE.** Both arms of the rule agree
+— acceptance failed, *and* steering's marginal token savings over exit-only
+are negative (-2774 tokens, ratio -1.26, threshold <0.05). Steering therefore
+ships as an honest negative result with a mechanism (the closed-loop
+overconfidence audit), not as a contribution. No steering condition runs on
+test.
+
 **1.5B dev picture as of Jul 30 (SUPERSEDED — retained for provenance):**
 
 - exit_only is FLAT in tau on MATH-train dev: 0.660@1707 (t.7K1),
@@ -258,15 +313,49 @@ remains dev-only; the test split is still evaluated once per selected point.
 - [ ] Selected operating points (1-SE rule, pooled dev): full=(tau*, K*),
       exit_only=(tau*, K*), budgets B*
 
-## Test (8 seeds, single-shot at selected points) — PENDING
+## Test (8 seeds, single-shot at selected points)
 
-- [ ] noop (8 seeds, running early on GPU1)
-- [ ] full @ selected; exit_only @ selected; baselines @ B*
-- [ ] 7B transfer at 1.5B-selected points
+### 1.5B — LANDED (2026-08-01; 8 seeds each, answer budget 2048)
+
+Mean over seeds +- SE of the seed mean. `exit_only` runs on the HF controller
+loop; all baselines run on vLLM, so the cross-engine caveat applies to every
+row-vs-row comparison here — **the within-engine comparison is exit_only vs
+the HF-noop reference (3 seeds, in flight) and it is the primary endpoint.**
+
+| policy | MATH-500 | GSM8K | GPQA-D | AIME'25 |
+|---|---|---|---|---|
+| noop (vLLM) | 0.833±0.002 @4653 | 0.877±0.005 @2082 | 0.240±0.008 @8027 | 0.225±0.016 @14604 |
+| **exit_only t0.7/K2 (HF)** | **0.807±0.004 @2312** | **0.836±0.008 @694** | **0.323±0.016 @6538** | **0.237±0.020 @11492** |
+| static_budget B*=2048 | 0.774±0.004 @1726 | 0.861±0.006 @1281 | 0.316±0.010 @1923 | 0.146±0.015 @2033 |
+| budget_prompt B*=1024 | 0.832±0.002 @4514 | 0.867±0.007 @1916 | 0.253±0.011 @8015 | 0.258±0.022 @14069 |
+| concise_prompt | 0.832±0.004 @3447 | 0.765±0.003 @344 | 0.296±0.009 @6693 | 0.254±0.021 @14090 |
+| trial_decode | 0.493±0.003 @317 | 0.584±0.009 @301 | 0.135±0.006 @376 | 0.042±0.008 @325 |
+
+Pooled primary endpoint (MATH-500 + GSM8K, rollout-weighted 500:250):
+exit_only **0.817 @ 1773** vs vLLM-noop 0.848 @ 3796 (-0.031 acc, **-53%
+tokens**) vs static_budget 0.803 @ 1578 (+0.014 acc, +12% tokens).
+
+Reading it honestly: against the compute-matched baseline that actually
+restrains tokens (static_budget), exit_only is **not** a clean Pareto win on
+test — it buys +0.014 accuracy for 12% more tokens, and static_budget wins
+outright on GSM8K. The unambiguous wins are (a) the ~53% token cut vs noop for
+-0.031 accuracy, and (b) GPQA, where exit_only beats every baseline
+(0.323 vs 0.240 noop) — an out-of-distribution transfer the probe was never
+tuned on. Cluster-bootstrap CIs and the hierarchical token-superiority ->
+accuracy-non-inferiority test replace these seed-mean SEs once the analyze
+step runs; the HF-noop reference decides the within-engine claim.
+
+Retained robustness datapoint: the 2 v1 seeds at the *uncorrected* point
+(t0.7/K1, 512 budget, hash cbb8895c16) score 0.628/0.654/0.149/0.150 — the
+gap to the corrected point is almost entirely the 512-token answer cap, and
+they are reported only as provenance, never as an endpoint.
+
+- [ ] HF-noop test reference (3 seeds, GPU0, in flight) — within-engine primary
+- [ ] 7B transfer at 1.5B-selected points (GPU1, in flight)
 - [ ] Primary endpoint: pooled MATH-500+GSM8K, hierarchical (token
       superiority -> accuracy non-inferiority), cluster bootstrap 10k
 - [ ] AIME'25 + GPQA descriptive CIs (anchors)
-- [ ] Steering acceptance + pre-registered D6 decision
+- [x] Steering acceptance (REJECTED) + pre-registered D6 decision (EXIT-LED)
 - [ ] Interp: logit lens + SAE on probe/steer directions
 
 ## Deviations & amendments (all pre-test, all documented in STATUS.md)
@@ -316,6 +405,20 @@ remains dev-only; the test split is still evaluated once per selected point.
     grading the full policy is 0.59-0.64 vs exit_only 0.78-0.82 on MATH dev,
     so the remaining alphas are futile; alpha=3 still carries the
     pre-registered paired acceptance test.
+17. **Steering acceptance was re-graded, not taken from stored labels.** The
+    `correct` field in the dev result files predates the extractor fix, so
+    `scripts/steering_acceptance.py` now re-grades both arms in-process with
+    the fixed extractor at a matched 512-token answer budget, and records the
+    noop reference hash it used in the output JSON. (It also fixed a crash:
+    the noop reference was unpacked as `(policy, df)` instead of `df`, which
+    made the gate fail with an AttributeError on its first scheduled run.)
+18. **Autopilot snapshot commits were silently dropping artifacts.**
+    `git add a b missing` aborts and stages *nothing*; the snapshot listed
+    `EXPERIMENTS_DONE.md` and `runs/r1_qwen_7b/analysis` before they existed,
+    so between Jul 31 08:32 and Aug 1 02:30 UTC every milestone logged
+    "committed+pushed" while committing nothing. Paths are now added
+    individually and a failed commit is reported instead of swallowed. No
+    experimental data was lost (result files are written directly to disk).
 16. Steering acceptance: regex phase-rate shift computed on paragraph-split
     chunks (approximation) as a screen; the pre-registered judge-verified
     shift is required (and will be run) only if the paired accuracy gate

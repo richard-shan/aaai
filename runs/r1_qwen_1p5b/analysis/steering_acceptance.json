@@ -1,0 +1,65 @@
+{
+  "alphas": {
+    "3.0": {
+      "phash": "e3e61597cf",
+      "alpha": 3.0,
+      "n_paired_problems": 250,
+      "n_rollouts": 1000,
+      "acceptance": {
+        "delta": -0.215,
+        "lo": -0.251,
+        "hi": -0.18,
+        "p_a_lt_b": 0.0,
+        "p_a_gt_b": 1.0,
+        "n_problems": 250,
+        "max_plausible_drop": 0.251,
+        "accepted": false
+      },
+      "tokens_delta": {
+        "delta": 3582.619,
+        "lo": 3130.73535,
+        "hi": 4063.266725
+      },
+      "phase_shift_regex_paragraph_approx": {
+        "verification": {
+          "rate_steered": 0.0319,
+          "rate_unsteered": 0.02525,
+          "delta": 0.006649999999999996,
+          "lo": 0.004423749999999998,
+          "hi": 0.008926250000000002
+        },
+        "backtracking": {
+          "rate_steered": 0.1631,
+          "rate_unsteered": 0.23075,
+          "delta": -0.06765000000000002,
+          "lo": -0.07355874999999999,
+          "hi": -0.06216249999999999
+        },
+        "deduction": {
+          "rate_steered": 0.526,
+          "rate_unsteered": 0.50005,
+          "delta": 0.02595000000000003,
+          "lo": 0.01992499999999997,
+          "hi": 0.03292562499999997
+        }
+      }
+    }
+  },
+  "any_accepted": false,
+  "noop_reference": {
+    "phash": "5391bd1826",
+    "n_rollouts": 1000
+  },
+  "grading": "fixed extractor, answer budget matched at 512",
+  "d6": {
+    "noop_tokens": 4112.608,
+    "exit_tokens": 1908.876,
+    "exit_savings": 2203.732,
+    "full_tokens": 4682.456,
+    "full_acc": 0.62,
+    "steer_extra_savings": -2773.58,
+    "extra_over_exit_ratio": -1.2585831671001737,
+    "exit_led_headline": true
+  },
+  "generated_utc": "2026-08-01T02:34:51Z"
+}
