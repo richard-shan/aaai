@@ -1,6 +1,6 @@
 # Autopilot auto-log (machine-generated; prose lives in docs/RESULTS.md)
 
-Updated: 2026-08-01T02:37:12Z — last milestone: STATUS progress note (02:40 UTC); failure record annotated as resolved
+Updated: 2026-08-01T20:47:09Z — last milestone: 1.5B HF-noop test reference (3 seeds, budget 2048)
 
 ## Step failures
 ```
@@ -92,6 +92,9 @@ run_baselines[noop 2217fed51d]: aime/test acc=0.233 mean_think=13838
 run_baselines[noop 2217fed51d]: aime/test acc=0.233 mean_think=15365
 run_baselines[noop 2217fed51d]: aime/test acc=0.267 mean_think=14812
 run_baselines[noop 2217fed51d]: aime/test acc=0.300 mean_think=14297
+run_baselines[noop 2217fed51d]: aime/test acc=0.367 mean_think=13119
+run_baselines[noop 2217fed51d]: aime/test acc=0.400 mean_think=12261
+run_baselines[noop 2217fed51d]: aime/test acc=0.400 mean_think=13266
 run_baselines[noop 2217fed51d]: gpqa_diamond/test acc=0.207 mean_think=7785
 run_baselines[noop 2217fed51d]: gpqa_diamond/test acc=0.212 mean_think=7725
 run_baselines[noop 2217fed51d]: gpqa_diamond/test acc=0.232 mean_think=8035
@@ -100,6 +103,9 @@ run_baselines[noop 2217fed51d]: gpqa_diamond/test acc=0.237 mean_think=7921
 run_baselines[noop 2217fed51d]: gpqa_diamond/test acc=0.253 mean_think=8534
 run_baselines[noop 2217fed51d]: gpqa_diamond/test acc=0.263 mean_think=8366
 run_baselines[noop 2217fed51d]: gpqa_diamond/test acc=0.278 mean_think=8075
+run_baselines[noop 2217fed51d]: gpqa_diamond/test acc=0.364 mean_think=6432
+run_baselines[noop 2217fed51d]: gpqa_diamond/test acc=0.364 mean_think=6610
+run_baselines[noop 2217fed51d]: gpqa_diamond/test acc=0.404 mean_think=6055
 run_baselines[noop 2217fed51d]: gsm8k/dev acc=0.960 mean_think=1308
 run_baselines[noop 2217fed51d]: gsm8k/test acc=0.856 mean_think=2089
 run_baselines[noop 2217fed51d]: gsm8k/test acc=0.864 mean_think=2065
@@ -109,6 +115,9 @@ run_baselines[noop 2217fed51d]: gsm8k/test acc=0.876 mean_think=2057
 run_baselines[noop 2217fed51d]: gsm8k/test acc=0.888 mean_think=2108
 run_baselines[noop 2217fed51d]: gsm8k/test acc=0.892 mean_think=2009
 run_baselines[noop 2217fed51d]: gsm8k/test acc=0.900 mean_think=2122
+run_baselines[noop 2217fed51d]: gsm8k/test acc=0.908 mean_think=1480
+run_baselines[noop 2217fed51d]: gsm8k/test acc=0.928 mean_think=1264
+run_baselines[noop 2217fed51d]: gsm8k/test acc=0.928 mean_think=1397
 run_baselines[noop 2217fed51d]: math500/test acc=0.824 mean_think=4780
 run_baselines[noop 2217fed51d]: math500/test acc=0.826 mean_think=4563
 run_baselines[noop 2217fed51d]: math500/test acc=0.828 mean_think=4423
@@ -117,6 +126,9 @@ run_baselines[noop 2217fed51d]: math500/test acc=0.832 mean_think=4727
 run_baselines[noop 2217fed51d]: math500/test acc=0.836 mean_think=4620
 run_baselines[noop 2217fed51d]: math500/test acc=0.840 mean_think=4812
 run_baselines[noop 2217fed51d]: math500/test acc=0.844 mean_think=4629
+run_baselines[noop 2217fed51d]: math500/test acc=0.922 mean_think=3428
+run_baselines[noop 2217fed51d]: math500/test acc=0.924 mean_think=3435
+run_baselines[noop 2217fed51d]: math500/test acc=0.924 mean_think=3572
 run_baselines[noop 2217fed51d]: math_train/dev acc=0.865 mean_think=4529
 run_baselines[static_budget 0047e49359]: gsm8k/dev acc=0.945 mean_think=1311
 run_baselines[static_budget 0047e49359]: math_train/dev acc=0.719 mean_think=3536
@@ -127,7 +139,10 @@ run_baselines[static_budget 974b1c9039]: aime/test acc=0.133 mean_think=2014
 run_baselines[static_budget 974b1c9039]: aime/test acc=0.167 mean_think=2022
 run_baselines[static_budget 974b1c9039]: aime/test acc=0.167 mean_think=2048
 run_baselines[static_budget 974b1c9039]: aime/test acc=0.200 mean_think=2033
+run_baselines[static_budget 974b1c9039]: aime/test acc=0.200 mean_think=2042
 run_baselines[static_budget 974b1c9039]: aime/test acc=0.200 mean_think=2045
+run_baselines[static_budget 974b1c9039]: aime/test acc=0.233 mean_think=2033
+run_baselines[static_budget 974b1c9039]: aime/test acc=0.233 mean_think=2036
 run_baselines[static_budget 974b1c9039]: gpqa_diamond/test acc=0.278 mean_think=1926
 run_baselines[static_budget 974b1c9039]: gpqa_diamond/test acc=0.283 mean_think=1915
 run_baselines[static_budget 974b1c9039]: gpqa_diamond/test acc=0.298 mean_think=1935
@@ -135,7 +150,10 @@ run_baselines[static_budget 974b1c9039]: gpqa_diamond/test acc=0.313 mean_think=
 run_baselines[static_budget 974b1c9039]: gpqa_diamond/test acc=0.328 mean_think=1896
 run_baselines[static_budget 974b1c9039]: gpqa_diamond/test acc=0.328 mean_think=1920
 run_baselines[static_budget 974b1c9039]: gpqa_diamond/test acc=0.338 mean_think=1934
+run_baselines[static_budget 974b1c9039]: gpqa_diamond/test acc=0.348 mean_think=1908
 run_baselines[static_budget 974b1c9039]: gpqa_diamond/test acc=0.359 mean_think=1915
+run_baselines[static_budget 974b1c9039]: gpqa_diamond/test acc=0.404 mean_think=1895
+run_baselines[static_budget 974b1c9039]: gpqa_diamond/test acc=0.449 mean_think=1936
 run_baselines[static_budget 974b1c9039]: gsm8k/dev acc=0.875 mean_think=1085
 run_baselines[static_budget 974b1c9039]: gsm8k/test acc=0.836 mean_think=1278
 run_baselines[static_budget 974b1c9039]: gsm8k/test acc=0.840 mean_think=1263
@@ -145,6 +163,9 @@ run_baselines[static_budget 974b1c9039]: gsm8k/test acc=0.864 mean_think=1244
 run_baselines[static_budget 974b1c9039]: gsm8k/test acc=0.868 mean_think=1286
 run_baselines[static_budget 974b1c9039]: gsm8k/test acc=0.884 mean_think=1285
 run_baselines[static_budget 974b1c9039]: gsm8k/test acc=0.884 mean_think=1296
+run_baselines[static_budget 974b1c9039]: gsm8k/test acc=0.892 mean_think=1155
+run_baselines[static_budget 974b1c9039]: gsm8k/test acc=0.916 mean_think=1140
+run_baselines[static_budget 974b1c9039]: gsm8k/test acc=0.932 mean_think=1115
 run_baselines[static_budget 974b1c9039]: math500/test acc=0.758 mean_think=1731
 run_baselines[static_budget 974b1c9039]: math500/test acc=0.762 mean_think=1704
 run_baselines[static_budget 974b1c9039]: math500/test acc=0.768 mean_think=1718
@@ -153,6 +174,9 @@ run_baselines[static_budget 974b1c9039]: math500/test acc=0.776 mean_think=1703
 run_baselines[static_budget 974b1c9039]: math500/test acc=0.776 mean_think=1747
 run_baselines[static_budget 974b1c9039]: math500/test acc=0.786 mean_think=1719
 run_baselines[static_budget 974b1c9039]: math500/test acc=0.794 mean_think=1750
+run_baselines[static_budget 974b1c9039]: math500/test acc=0.814 mean_think=1677
+run_baselines[static_budget 974b1c9039]: math500/test acc=0.814 mean_think=1706
+run_baselines[static_budget 974b1c9039]: math500/test acc=0.816 mean_think=1676
 run_baselines[static_budget 974b1c9039]: math_train/dev acc=0.688 mean_think=1713
 run_baselines[static_budget c2477df0fe]: gsm8k/dev acc=0.925 mean_think=1222
 run_baselines[static_budget c2477df0fe]: math_train/dev acc=0.731 mean_think=2593
@@ -198,7 +222,10 @@ run_controller[exit_only 079322feb6]: aime/test acc=0.200 mean_think=12065
 run_controller[exit_only 079322feb6]: aime/test acc=0.200 mean_think=9926
 run_controller[exit_only 079322feb6]: aime/test acc=0.233 mean_think=10631
 run_controller[exit_only 079322feb6]: aime/test acc=0.233 mean_think=13492
+run_controller[exit_only 079322feb6]: aime/test acc=0.233 mean_think=6770
 run_controller[exit_only 079322feb6]: aime/test acc=0.267 mean_think=13061
+run_controller[exit_only 079322feb6]: aime/test acc=0.300 mean_think=7940
+run_controller[exit_only 079322feb6]: aime/test acc=0.333 mean_think=6784
 run_controller[exit_only 079322feb6]: aime/test acc=0.367 mean_think=11200
 run_controller[exit_only 079322feb6]: gpqa_diamond/test acc=0.242 mean_think=6555
 run_controller[exit_only 079322feb6]: gpqa_diamond/test acc=0.288 mean_think=5974
@@ -208,6 +235,10 @@ run_controller[exit_only 079322feb6]: gpqa_diamond/test acc=0.338 mean_think=660
 run_controller[exit_only 079322feb6]: gpqa_diamond/test acc=0.338 mean_think=6863
 run_controller[exit_only 079322feb6]: gpqa_diamond/test acc=0.369 mean_think=6575
 run_controller[exit_only 079322feb6]: gpqa_diamond/test acc=0.374 mean_think=6748
+run_controller[exit_only 079322feb6]: gpqa_diamond/test acc=0.414 mean_think=2591
+run_controller[exit_only 079322feb6]: gpqa_diamond/test acc=0.429 mean_think=2580
+run_controller[exit_only 079322feb6]: gpqa_diamond/test acc=0.444 mean_think=2555
+run_controller[exit_only 079322feb6]: gpqa_diamond/test acc=0.444 mean_think=2701
 run_controller[exit_only 079322feb6]: gsm8k/dev acc=0.590 mean_think=506
 run_controller[exit_only 079322feb6]: gsm8k/test acc=0.792 mean_think=810
 run_controller[exit_only 079322feb6]: gsm8k/test acc=0.828 mean_think=658
@@ -217,7 +248,10 @@ run_controller[exit_only 079322feb6]: gsm8k/test acc=0.840 mean_think=777
 run_controller[exit_only 079322feb6]: gsm8k/test acc=0.844 mean_think=657
 run_controller[exit_only 079322feb6]: gsm8k/test acc=0.856 mean_think=589
 run_controller[exit_only 079322feb6]: gsm8k/test acc=0.864 mean_think=643
+run_controller[exit_only 079322feb6]: gsm8k/test acc=0.876 mean_think=454
+run_controller[exit_only 079322feb6]: gsm8k/test acc=0.896 mean_think=493
 run_controller[exit_only 079322feb6]: gsm8k/test acc=0.904 mean_think=500
+run_controller[exit_only 079322feb6]: gsm8k/test acc=0.912 mean_think=487
 run_controller[exit_only 079322feb6]: math500/test acc=0.790 mean_think=2301
 run_controller[exit_only 079322feb6]: math500/test acc=0.798 mean_think=2401
 run_controller[exit_only 079322feb6]: math500/test acc=0.804 mean_think=2186
@@ -227,6 +261,9 @@ run_controller[exit_only 079322feb6]: math500/test acc=0.808 mean_think=2392
 run_controller[exit_only 079322feb6]: math500/test acc=0.822 mean_think=2328
 run_controller[exit_only 079322feb6]: math500/test acc=0.822 mean_think=2349
 run_controller[exit_only 079322feb6]: math500/test acc=0.832 mean_think=1400
+run_controller[exit_only 079322feb6]: math500/test acc=0.836 mean_think=1401
+run_controller[exit_only 079322feb6]: math500/test acc=0.836 mean_think=1464
+run_controller[exit_only 079322feb6]: math500/test acc=0.878 mean_think=1327
 run_controller[exit_only 079322feb6]: math_train/dev acc=0.682 mean_think=2260
 run_controller[exit_only 42c3453b67]: gsm8k/dev acc=0.530 mean_think=698
 run_controller[exit_only 42c3453b67]: math_train/dev acc=0.635 mean_think=3353
@@ -264,7 +301,19 @@ run_controller[full dac4beda09]: gsm8k/dev acc=0.615 mean_think=2351
 run_controller[full dac4beda09]: gsm8k/dev acc=0.840 mean_think=717
 run_controller[full dac4beda09]: math_train/dev acc=0.482 mean_think=5265
 run_controller[full dac4beda09]: math_train/dev acc=0.606 mean_think=2045
+run_controller[noop 5391bd1826]: aime/test acc=0.200 mean_think=15197
+run_controller[noop 5391bd1826]: aime/test acc=0.233 mean_think=13098
+run_controller[noop 5391bd1826]: aime/test acc=0.300 mean_think=14780
+run_controller[noop 5391bd1826]: gpqa_diamond/test acc=0.232 mean_think=7676
+run_controller[noop 5391bd1826]: gpqa_diamond/test acc=0.258 mean_think=7508
+run_controller[noop 5391bd1826]: gpqa_diamond/test acc=0.258 mean_think=8122
 run_controller[noop 5391bd1826]: gsm8k/dev acc=0.920 mean_think=1913
+run_controller[noop 5391bd1826]: gsm8k/test acc=0.856 mean_think=2409
+run_controller[noop 5391bd1826]: gsm8k/test acc=0.884 mean_think=2164
+run_controller[noop 5391bd1826]: gsm8k/test acc=0.896 mean_think=1916
+run_controller[noop 5391bd1826]: math500/test acc=0.834 mean_think=4491
+run_controller[noop 5391bd1826]: math500/test acc=0.846 mean_think=4476
+run_controller[noop 5391bd1826]: math500/test acc=0.852 mean_think=4535
 run_controller[noop 5391bd1826]: math_train/dev acc=0.855 mean_think=4663
 run_controller[noop 888caea894]: gsm8k/dev acc=0.940 mean_think=1417
 run_controller[noop 888caea894]: math_train/dev acc=0.701 mean_think=4470
