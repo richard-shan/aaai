@@ -68,9 +68,22 @@ mark "$PUSH_STATE"
   echo
   echo "Results: docs/RESULTS.md · machine log: docs/AUTOLOG.md · summary: EXPERIMENTS_DONE.md"
 } > SAFE_TO_TERMINATE.md
+# The final commit subject must be unmistakable in the GitHub commit list —
+# this is the user's signal to terminate the billed GPU instance. It is also
+# git-tagged DONE so it is findable without scrolling the log.
 git add SAFE_TO_TERMINATE.md 2>>"$LOG"
-git commit -q -m "SAFE TO TERMINATE: all experiments complete and pushed" >>"$LOG" 2>&1
+git commit -q -F - >>"$LOG" 2>&1 <<EOF
+DONE — ALL EXPERIMENTS COMPLETE — SAFE TO TERMINATE THE GPU INSTANCE
+
+Finished: $(cat runs/AUTOPILOT_DONE 2>/dev/null)
+${PUSH_STATE}
+
+Nothing further is running. Results: docs/RESULTS.md, EXPERIMENTS_DONE.md.
+Tagged DONE.
+EOF
+git tag -f -a DONE -m "All ReasonControl experiments complete; safe to terminate the GPU instance" >>"$LOG" 2>&1
 git push origin main >>"$LOG" 2>&1 || { sleep 30; git push origin main >>"$LOG" 2>&1; }
+git push -f origin DONE >>"$LOG" 2>&1 || { sleep 30; git push -f origin DONE >>"$LOG" 2>&1; }
 
 # 3. email, if credentials were provided
 if [ -r "$HOME/.smtp_creds" ]; then
