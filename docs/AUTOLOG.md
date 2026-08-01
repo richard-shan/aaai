@@ -1,6 +1,6 @@
 # Autopilot auto-log (machine-generated; prose lives in docs/RESULTS.md)
 
-Updated: 2026-08-01T20:47:09Z — last milestone: 1.5B HF-noop test reference (3 seeds, budget 2048)
+Updated: 2026-08-01T20:48:29Z — last milestone: capture interp artifacts (runs/analysis was never being committed)
 
 ## Step failures
 ```
