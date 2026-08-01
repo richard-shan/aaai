@@ -1,1 +1,2 @@
 2026-07-31T08:32:25Z steering-acceptance rc=1
+[2026-08-01T02:35Z] RESOLVED MANUALLY: steering-acceptance rerun after fixing the tuple-unpack crash + re-grading both arms. Verdict REJECTED, D6 exit-led. See runs/r1_qwen_1p5b/analysis/steering_acceptance.json and commit 6e7936f.

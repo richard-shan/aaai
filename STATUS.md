@@ -79,6 +79,21 @@ silently skips the 512-budget file. v2 disambiguates with inert overrides —
 HF noop `min_chunks=6` (v1 used 5), and `policy.alpha=6.5` for the 2048
 exit_only DEV control (alpha is inert: ExitOnlyPolicy has `use_steer=False`).
 
+**Progress as of 2026-08-01 02:40 UTC** (both chains alive, 1 step failure,
+resolved by hand):
+- DONE: 2048 dev control (noop + exit_only@selected), steering acceptance
+  (REJECTED; D6 = EXIT-LED), 1.5B exit_only test seeds 0-7 (+AIME), full
+  vLLM baseline test suite (8 seeds x 5 policies).
+- RUNNING: GPU0 HF-noop test reference seed 0/3 (the within-engine primary
+  comparison; noop is slow, ~8h/seed); GPU1 7B transfer seed 0/4.
+- REMAINING after those: interp (both models) -> regrade -> analyze ->
+  EXPERIMENTS_DONE.md. ETA late 2026-08-02 UTC.
+- Two infra bugs fixed 02:35 UTC (both in commit 6e7936f): the snapshot's
+  `git add` aborted on a not-yet-existing path and therefore committed
+  NOTHING from Jul 31 08:32 to Aug 1 02:30 (data was never at risk — result
+  files land on disk directly); and `steering_acceptance.py` crashed on a
+  tuple unpack, which is why that step shows as the one STEPFAIL.
+
 Relaunch v2 after any crash (idempotent, no args):
 `cd /lambda/nfs/aaai/aaai && nohup setsid bash scripts/autopilot2.sh >> runs/logs/autopilot.log 2>&1 < /dev/null & disown`
 

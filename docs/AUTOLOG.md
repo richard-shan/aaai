@@ -1,10 +1,11 @@
 # Autopilot auto-log (machine-generated; prose lives in docs/RESULTS.md)
 
-Updated: 2026-08-01T02:36:42Z — last milestone: steering REJECTED + D6 exit-led; 1.5B test table (8 seeds); fix snapshot git-add + acceptance crash
+Updated: 2026-08-01T02:37:12Z — last milestone: STATUS progress note (02:40 UTC); failure record annotated as resolved
 
 ## Step failures
 ```
 2026-07-31T08:32:25Z steering-acceptance rc=1
+[2026-08-01T02:35Z] RESOLVED MANUALLY: steering-acceptance rerun after fixing the tuple-unpack crash + re-grading both arms. Verdict REJECTED, D6 exit-led. See runs/r1_qwen_1p5b/analysis/steering_acceptance.json and commit 6e7936f.
 ```
 
 ## Banked results (all acc= lines, all logs, deduped)
