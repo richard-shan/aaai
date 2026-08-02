@@ -117,10 +117,7 @@ uses trial-answer confidence; SpecExit \cite{specexit} and FlashThink
 \cite{flashthink} use auxiliary models or speculative signals; a related line
 stops when successive answers agree \cite{answerconv}. These are effective but
 pay additional decoding per check. Our probe consumes activations already
-computed. Notably, our own re-implementation of the trial-decode family
-(Table~\ref{tab:perds}) is the weakest baseline at a matched aggressive
-operating point, which we read as evidence that behavioral signals are
-sensitive to how early they are queried.
+computed.
 
 \paragraph{Latent-state controllers.} NEAT \cite{neat} monitors exit
 neurons and suppresses reflection tokens; AIC \cite{aic} trains gradient-boosted
@@ -130,9 +127,11 @@ redundancy classifier; TPV \cite{tpv} probes reasoning progress and steers in
 the same direction; CGRS \cite{cgrs} gates reflection suppression on model
 certainty at the logit level. Closed-loop, state-conditioned intervention is
 therefore not itself novel. Our contribution is a sensor with defined semantics and
-audited calibration, a controlled comparison against implemented members of
-each competing family in one harness, and an explicit account of when the
-approach fails.
+audited calibration, an evaluation of every family in a single harness under
+one protocol, and an explicit account of when the approach fails. We are
+careful about the strength of the baseline comparison: the budget families
+received dev sweeps, but our trial-decode implementation did not, and we
+qualify that comparison accordingly.
 
 \paragraph{Length control by training.} L1/LCPO \cite{l1}, ShorterBetter, and
 O1-Pruner train models to be concise. These are complementary: they change the
@@ -276,9 +275,10 @@ a large compute saving, rather than as accuracy-preserving.
 \begin{table}[t]
 \centering
 \small
+\setlength{\tabcolsep}{3pt}
 \begin{tabular}{lcc}
 \toprule
-Pooled MATH-500 + GSM8K & Accuracy [95\% CI] & Think tokens \\
+Pooled MATH-500 + GSM8K & Acc.\ [95\% CI] & Tokens \\
 \midrule
 \multicolumn{3}{l}{\emph{1.5B}}\\
 \textsc{exit\_only} ($\tau{=}0.7,K{=}2$) & $0.817$ $[0.796,0.836]$ & $1{,}773$ \\
@@ -315,9 +315,23 @@ captures most of the available benefit.
 Table~\ref{tab:perds} gives the full test grid at 1.5B. Two patterns hold at
 both scales. The accuracy cost tracks how much genuine search a problem
 requires: it is negligible on GSM8K, moderate on MATH-500, and largest on
-AIME. And \textsc{trial\_decode}---the behavioral-exit family---collapses at
-this operating point, confirming that the gains here are not simply a generic
-consequence of stopping early.
+AIME. Among the prompt-level baselines, \textsc{budget\_prompt} barely
+restrains generation at all (4{,}514 tokens on MATH-500 against
+\textsc{noop}'s 4{,}653), so it is accuracy-preserving but not an efficiency
+method; \textsc{concise\_prompt} restrains GSM8K aggressively but not MATH.
+
+\paragraph{A caveat on the trial-decode baseline.} Our
+\textsc{trial\_decode} row is far below the near-lossless numbers reported by
+DEER \cite{deer} and Dynasor \cite{dynasor}, and we do not present it as a
+faithful evaluation of that family. Its exit rule has free parameters
+(agreement count, minimum chunks before probing) which we ran at a single
+default configuration rather than sweeping, whereas \textsc{exit\_only}
+received nine dev configurations and the budget families four each. The
+resulting operating point is far more aggressive than any we selected for
+ourselves ($317$ vs $2{,}312$ mean think tokens), which is sufficient to
+explain the gap. We report the row for completeness and explicitly do not
+draw a comparative conclusion from it; a properly tuned head-to-head against
+behavioral exit remains open work.
 
 \begin{table}[t]
 \centering
@@ -491,7 +505,9 @@ estimated the full grid's behavior there; the 1-SE rule re-selects the same
 point under both conservative and generous assumptions, so we do not believe
 selection is a confound, but we did not re-run the entire sweep. The 7B
 within-engine control uses a single seed (the 7B cross-engine control uses
-four). AIME'25 ($n{=}30$) and GPQA ($n{=}198$) are descriptive anchors and
+four). The \textsc{trial\_decode} baseline was run at one default
+configuration rather than swept, so our numbers understate that family and we
+draw no comparative conclusion from them. AIME'25 ($n{=}30$) and GPQA ($n{=}198$) are descriptive anchors and
 carry no inferential claims. Phase labels have moderate judge agreement
 ($\kappa$ $0.43$--$0.52$), so phase results are secondary throughout. All
 results are on the DeepSeek-R1-Distill-Qwen family; transfer to other reasoning

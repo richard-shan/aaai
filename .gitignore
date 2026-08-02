@@ -3,3 +3,11 @@ runs_smoke/
 __pycache__/
 *.egg-info/
 .pytest_cache/
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/b1.log
+paper/b2.log
+paper/build*.log
