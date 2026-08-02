@@ -177,7 +177,48 @@ Known limitation to state in the paper: the operating point was selected on
 512-budget dev data (re-grading fixed the extractor but cannot un-truncate an
 answer). Re-selecting the whole grid at 2048 costs ~28 GPU-hours and was not
 affordable; instead the selected point is re-run at 2048 as a verification,
-and the selection's sensitivity to the cap is reported honestly.
+and the selection's sensitivity to the cap is analysed below.
+
+#### Would re-selecting at 2048 change the operating point? No. (2026-08-02)
+
+Estimated each grid point's 2048 accuracy from its unparsed-answer rate (the
+truncation-damage proxy), calibrated on the two points measured at BOTH
+budgets: noop 512->2048 recovered 0.2075 unparsed for +0.153 acc (0.74 per
+unparsed answer), exit_only@selected recovered 0.0537 for +0.015 (0.28 per).
+
+| point | think | acc@512 | unparsed | est. acc@2048 (0.28 / 0.74) |
+|---|---|---|---|---|
+| cbb8895c16 (t0.7/K1) | 1707 | 0.778 | 0.111 | 0.800 / 0.838 |
+| **079322feb6 (t0.7/K2, SELECTED)** | 2260 | 0.813 | 0.084 | **0.828 / 0.852** |
+| fdec51004e | 2214 | 0.764 | 0.113 | 0.787 / 0.825 |
+| ab2ad2aa91 | 2752 | 0.784 | 0.116 | 0.808 / 0.848 |
+| 7ea0180ba8 | 2783 | 0.769 | 0.120 | 0.794 / 0.835 |
+| 42c3453b67 | 3353 | 0.774 | 0.129 | 0.801 / 0.847 |
+| 5733e5f65d | 3387 | 0.759 | 0.152 | 0.793 / 0.849 |
+| 7b873f923e | 3960 | 0.714 | 0.190 | 0.759 / 0.832 |
+
+Under EITHER calibration the 1-SE rule (SE ~ 0.0133) re-selects
+**079322feb6** — it has the highest estimated accuracy and nearly the fewest
+tokens. The conservative calibration also predicts the one point actually
+measured at 2048 to within 0.0001 (0.8276 est vs 0.8275 measured).
+
+Two consequences worth stating in the paper:
+1. The 512 cap was biased **toward** the selected point, not against it: it
+   punished the high-token settings hardest (19.0% unparsed at 3960 think vs
+   8.4% at 2260). Correcting it pushes toward MORE aggressive exits, i.e.
+   away from closing the accuracy gap.
+2. The gap is structural, not a tuning error. The best estimated accuracy
+   anywhere on the grid at 2048 is ~0.83 vs noop 0.855 — the original
+   "flat in tau" result surviving every correction. No threshold clears the
+   -0.02 margin while still saving meaningful compute; the conservative end
+   costs +78% tokens for perhaps +0.005 accuracy.
+
+So re-running selection is NOT the fix. The binding constraint is the probe's
+off-policy overconfidence (closed-loop audit: exits at claimed p 0.83-0.95,
+realized 0.65-0.70) — a distribution-shift problem, since the probe is trained
+on unintervened traces and then evaluated on states its own interventions
+create. The indicated next step is iterative on-policy probe retraining
+(DAgger-style), which is new method work, not a re-run.
 
 **Headline depends on the answer budget, so the budget must be fixed:**
 - At the matched 512-token budget (as pre-registered), exit_only *dominates*:
