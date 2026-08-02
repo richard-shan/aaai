@@ -1,6 +1,6 @@
 # Autopilot auto-log (machine-generated; prose lives in docs/RESULTS.md)
 
-Updated: 2026-08-02T09:11:42Z — last milestone: 7B transfer + references (budget 2048)
+Updated: 2026-08-02T09:17:41Z — last milestone: AUTOPILOT2 COMPLETE (failures=2) — safe to terminate GPU instance
 
 ## Step failures
 ```
