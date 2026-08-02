@@ -29,31 +29,34 @@ Calibrated Convergence Probes for Training-Free\\ Test-Time Compute Control}
 \maketitle
 
 \begin{abstract}
-Reasoning language models spend most of their test-time compute after they
-have already determined their answer. We show that this ``answer convergence''
-is linearly decodable from the residual stream of DeepSeek-R1-Distill models
-at both 1.5B and 7B scale (AUC $0.882$ / $0.854$), that the signal survives a
-strict position-controlled baseline within every position stratum (margin
-$0.147$ / $0.246$), and that it costs one matrix--vector product on activations
-the model has already computed---no auxiliary decode, no training, no weight
-updates. We convert this sensor into a training-free controller that decides
-\textsc{exit} / \textsc{continue} at reasoning-chunk boundaries, and evaluate
-it under a pre-registered protocol with dev-only tuning, single-shot test
-evaluation, and problem-level cluster bootstrap. The controller removes
-$52.4\%$ (1.5B) and $58.3\%$ (7B) of thinking tokens on pooled MATH-500 +
-GSM8K, at an accuracy cost of $-0.039$ $[-0.054,-0.024]$ and $-0.073$
-$[-0.091,-0.056]$ respectively. At 7B it dominates a compute-matched static
-budget (27.1\% fewer tokens at equal-or-better accuracy), and on GPQA-Diamond
-it \emph{exceeds} unconstrained reasoning at both scales ($+0.074$, $+0.049$)
-while using far less compute. An operating point selected on the 1.5B transfers
-to the 7B with no retuning. We additionally report two results we believe
-generalize beyond this system. First, a causal steering channel built from the
-same representations fails decisively, and we characterize why. Second, and
-most consequentially for probe-based control in general, a probe that is
-well-calibrated on-policy (ECE $\approx 0.02$) becomes badly miscalibrated
-under its own intervention: realized accuracy is flat at $\approx 0.69$ across
-every claimed-confidence bin from $0.75$ to $0.97$. On-policy calibration is
-not evidence of calibration under control.
+Reasoning language models spend much of their test-time compute after their
+answer is already determined, so a sensor that detects convergence could
+recover it. We show that convergence is linearly decodable from the residual
+stream of DeepSeek-R1-Distill models at 1.5B and 7B (AUC $0.882$ / $0.854$),
+that the signal survives a strict position-controlled baseline within every
+position stratum (margin $0.147$ / $0.246$), that it is well calibrated
+(ECE $0.022$), and that it costs one matrix--vector product on activations the
+model has already computed. Used as an early-exit controller under a
+pre-registered protocol---dev-only tuning, single-shot test evaluation,
+problem-level cluster bootstrap---it removes $52.4\%$ (1.5B) and $58.3\%$ (7B)
+of thinking tokens; at 7B it dominates a compute-matched static budget
+($27.1\%$ fewer tokens at equal-or-better accuracy), on GPQA-Diamond it
+\emph{exceeds} unconstrained reasoning at both scales, and an operating point
+selected on the 1.5B transfers to the 7B without retuning.
+
+The accompanying accuracy cost, however, is larger than our pre-registered
+non-inferiority margin, and the reason generalizes beyond this system. Once
+the probe drives exits rather than merely observing them, its confidence stops
+carrying information: realized accuracy is flat at $\approx 0.69$ across every
+asserted-confidence bin from $0.75$ to $0.97$, despite excellent on-policy
+calibration. A steering actuator built from directions in the same
+representation space---individually interpretable under a logit lens---fails
+the same way, costing $0.215$ accuracy while increasing token count. We show
+that threshold tuning cannot repair either failure, and argue the shared cause
+is that both were validated on states produced by undisturbed decoding and
+then applied to states produced by their own interventions. Representations
+that are well-behaved when observed are not thereby well-behaved when acted
+upon; we suggest on-policy probe retraining as the indicated remedy.
 \end{abstract}
 
 \section{Introduction}
@@ -81,30 +84,53 @@ reads states the forward pass already produced, so the sensor is essentially
 free, and because it is linear and calibrated it can be inspected, ablated,
 and compared against position-only baselines.
 
+By every standard offline measure, this sensor is good. It separates converged
+from unconverged boundaries at AUC $0.882$, it beats a position-only baseline
+within every position stratum, it is well calibrated (ECE $0.022$), and the
+threshold chosen for one model transfers to a model five times larger without
+retuning. Put it in the loop and it removes more than half of all thinking
+tokens.
+
+And yet the accuracy cost of those savings is larger than we pre-registered as
+acceptable, and the reason is the finding we think matters most here. Once the
+probe \emph{drives} exits rather than merely observing them, its confidence
+stops carrying information: realized accuracy is flat at $\approx 0.69$ across
+every asserted-confidence bin from $0.75$ to $0.97$. The sensor was measured on
+states produced by undisturbed decoding, and is then queried on states produced
+by its own decisions.
+
+The same thing happens on the write side. We also built a steering actuator
+from directions in the same representation space---diff-of-means vectors that
+are individually interpretable under a logit lens and behave as intended when
+validated in isolation. Applied closed-loop over long horizons it fails
+decisively, costing $0.215$ accuracy while \emph{increasing} token count.
+
+Two channels, one pattern, and it organizes this paper:
+
+\begin{quote}
+\emph{Representations that are well-behaved when you observe them are not
+thereby well-behaved when you act on them.}
+\end{quote}
+
 \paragraph{Contributions.}
 \begin{enumerate}
 \itemsep2pt
-\item \textbf{Convergence is linearly and calibratedly decodable, beyond
-position.} At both scales the convergence probe clears a pre-registered
-position-controlled gate within every position stratum, peaks in mid-network,
-and is well calibrated on-policy (Sec.~\ref{sec:probes}).
-\item \textbf{A training-free controller that turns the sensor into compute
-savings.} Over half of thinking tokens are removed at a small accuracy cost;
-at 7B the controller dominates compute-matched static budgeting
-(Sec.~\ref{sec:main}).
-\item \textbf{Zero-shot operating-point transfer across scale.} A threshold
-selected on 1.5B dev data applies unchanged to the 7B (Sec.~\ref{sec:transfer}).
-\item \textbf{Early exit helps on hard out-of-distribution multiple choice.}
-On GPQA-Diamond the controller beats unconstrained reasoning at both scales,
-indicating that unbounded chains can actively degrade answers
-(Sec.~\ref{sec:gpqa}).
-\item \textbf{Calibration under intervention is a distinct property from
-on-policy calibration.} We give a quantitative demonstration that a probe with
-ECE $\approx 0.02$ on-policy is uninformative once it drives the policy
-(Sec.~\ref{sec:audit}). This is a hazard for every probe-based controller, not
-only ours.
+\item \textbf{A sensor that is good by every offline measure}: convergence is
+linearly and calibratedly decodable beyond position at two scales, at the cost
+of one matrix--vector product, with operating points that transfer across
+scale (Sec.~\ref{sec:sensor}).
+\item \textbf{Acting on it works, and we quantify how well}: $52$--$58\%$ of
+thinking tokens removed; at 7B this dominates compute-matched static
+budgeting; on GPQA-Diamond it beats unconstrained reasoning outright
+(Sec.~\ref{sec:acting}).
+\item \textbf{Acting on it also breaks it, in both channels}: a quantitative
+demonstration that on-policy calibration is not evidence of calibration under
+control, the parallel open-loop/closed-loop failure of the steering channel,
+and an argument that threshold tuning cannot repair either
+(Sec.~\ref{sec:breaks}). We believe this is a hazard for probe-based
+controllers generally, not a property of our system.
 \item \textbf{Two measurement pitfalls that silently invert conclusions}
-(Sec.~\ref{sec:pitfalls}): answer-extraction coverage, and answer-budget
+(Sec.~\ref{sec:pitfalls}): answer-extraction coverage and answer-budget
 asymmetry between inference engines. Correcting them changed our headline
 result twice.
 \end{enumerate}
@@ -230,7 +256,8 @@ problems), tested hierarchically: first token superiority, then accuracy
 non-inferiority at a $2\%$ margin. AIME'25 and GPQA carry descriptive
 intervals only and are never used for tuning.
 
-\section{Results}
+\section{The Sensor Works}
+\label{sec:sensor}
 
 \subsection{Convergence is linearly decodable beyond position}
 \label{sec:probes}
@@ -259,6 +286,22 @@ is the minimum AUC advantage over a position-only baseline across position
 strata; the pre-registered gate required $\ge 0.05$.}
 \label{tab:probes}
 \end{table}
+
+\subsection{Operating points transfer across scale}
+\label{sec:transfer}
+
+The 7B results in Table~\ref{tab:primary} use the threshold selected on 1.5B
+dev data, with \emph{no} retuning---no 7B sweep was run. It transfers usefully:
+the controller remains far cheaper than unconstrained decoding and dominates
+static budgeting. It also transfers imperfectly, and informatively: the
+accuracy cost roughly doubles ($-0.039 \rightarrow -0.073$) for a comparable
+token saving, i.e.\ a threshold calibrated on a weaker model exits slightly too
+eagerly for a stronger one. This is consistent with the 7B probe's higher ECE
+($0.055$ vs $0.022$) and suggests threshold transfer should be accompanied by
+a light recalibration when the target model's probe is less well calibrated.
+
+\section{Acting On It Saves Compute}
+\label{sec:acting}
 
 \subsection{Main efficiency result}
 \label{sec:main}
@@ -312,31 +355,29 @@ captures most of the available benefit.
 
 \subsection{Per-dataset behavior}
 
-Table~\ref{tab:perds} gives the full test grid at 1.5B. Two patterns hold at
-both scales. The accuracy cost tracks how much genuine search a problem
-requires: it is negligible on GSM8K, moderate on MATH-500, and largest on
-AIME. Among the prompt-level baselines, \textsc{budget\_prompt} barely
-restrains generation at all (4{,}514 tokens on MATH-500 against
-\textsc{noop}'s 4{,}653), so it is accuracy-preserving but not an efficiency
-method; \textsc{concise\_prompt} restrains GSM8K aggressively but not MATH.
+Table~\ref{tab:perds} gives the test grid at 1.5B; the same ordering holds at
+7B. The accuracy cost tracks how much genuine search a problem requires:
+negligible on GSM8K, moderate on MATH-500, largest on AIME. The prompt-level
+baselines are included for reference rather than as competitors---
+\textsc{budget\_prompt} barely restrains generation at all ($4{,}514$ tokens
+on MATH-500 against \textsc{noop}'s $4{,}653$), so it preserves accuracy
+without being an efficiency method.
 
-\paragraph{A caveat on the trial-decode baseline.} Our
-\textsc{trial\_decode} row is far below the near-lossless numbers reported by
-DEER \cite{deer} and Dynasor \cite{dynasor}, and we do not present it as a
-faithful evaluation of that family. Its exit rule has free parameters
-(agreement count, minimum chunks before probing) which we ran at a single
-default configuration rather than sweeping, whereas \textsc{exit\_only}
-received nine dev configurations and the budget families four each. The
-resulting operating point is far more aggressive than any we selected for
-ourselves ($317$ vs $2{,}312$ mean think tokens), which is sufficient to
-explain the gap. We report the row for completeness and explicitly do not
-draw a comparative conclusion from it; a properly tuned head-to-head against
+We exclude our \textsc{trial\_decode} implementation from the comparison. Its
+exit rule has free parameters (agreement count, minimum chunks before probing)
+that we ran at a single default configuration rather than sweeping, whereas
+\textsc{exit\_only} received nine dev configurations and the budget families
+four each; the resulting operating point is an order of magnitude more
+aggressive than any we selected for ourselves ($317$ vs $2{,}312$ mean think
+tokens). Our numbers for it therefore fall far below the near-lossless results
+reported by DEER \cite{deer} and Dynasor \cite{dynasor} and should not be read
+as an evaluation of that family. A properly tuned head-to-head against
 behavioral exit remains open work.
 
 \begin{table}[t]
 \centering
 \small
-\setlength{\tabcolsep}{3.5pt}
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lcccc}
 \toprule
 1.5B, test & MATH-500 & GSM8K & GPQA-D & AIME'25 \\
@@ -351,28 +392,14 @@ behavioral exit remains open work.
  & \tiny$4514$ & \tiny$1916$ & \tiny$8015$ & \tiny$14069$ \\
 \textsc{concise\_prompt} & $.832$ & $.765$ & $.296$ & $.254$ \\
  & \tiny$3447$ & \tiny$344$ & \tiny$6693$ & \tiny$14090$ \\
-\textsc{trial\_decode} & $.493$ & $.584$ & $.135$ & $.042$ \\
- & \tiny$317$ & \tiny$301$ & \tiny$376$ & \tiny$325$ \\
 \bottomrule
 \end{tabular}
 \caption{1.5B test results, 8 seeds. Upper number is accuracy, lower (small)
-is mean think tokens. AIME'25 ($n{=}30$) and GPQA ($n{=}198$) are descriptive
-anchors.}
+is mean think tokens. AIME'25 ($n{=}30$) is a descriptive anchor with wide
+intervals and supports no inferential claim; GPQA ($n{=}198$) is discussed in
+Sec.~\ref{sec:gpqa}.}
 \label{tab:perds}
 \end{table}
-
-\subsection{Operating points transfer across scale}
-\label{sec:transfer}
-
-The 7B results in Table~\ref{tab:primary} use the threshold selected on 1.5B
-dev data, with \emph{no} retuning---no 7B sweep was run. It transfers usefully:
-the controller remains far cheaper than unconstrained decoding and dominates
-static budgeting. It also transfers imperfectly, and informatively: the
-accuracy cost roughly doubles ($-0.039 \rightarrow -0.073$) for a comparable
-token saving, i.e.\ a threshold calibrated on a weaker model exits slightly too
-eagerly for a stronger one. This is consistent with the 7B probe's higher ECE
-($0.055$ vs $0.022$) and suggests threshold transfer should be accompanied by
-a light recalibration when the target model's probe is less well calibrated.
 
 \subsection{Early exit improves hard OOD multiple choice}
 \label{sec:gpqa}
@@ -389,44 +416,10 @@ choice, long unconstrained chains do not merely waste compute, they degrade
 answers---the model reasons itself away from an initially correct choice. A
 convergence-aware exit captures that benefit while remaining adaptive.
 
-\subsection{The steering channel fails}
-\label{sec:steer}
+\section{But Acting Breaks the Sensor}
+\label{sec:breaks}
 
-We pre-registered an acceptance gate for the steering actuator: it ships only
-if the upper confidence bound on the paired accuracy drop is below $2\%$ on at
-least 200 paired dev rollouts. It fails by an order of magnitude. At $\alpha{=}3$
-over 250 paired problems (1000 rollouts), steering costs $-0.215$
-$[-0.251,-0.180]$ accuracy and, far from saving compute, \emph{adds}
-$+3{,}583$ $[+3{,}131,+4{,}063]$ thinking tokens. A pre-registered framing gate
-(steering must add $\ge 5\%$ of exit-only's savings) therefore resolved the
-paper to be exit-led, in writing, before test results were examined.
-
-A regex screen on the phase rates shows the intervention moving in the wrong
-direction: positive $\alpha$ \emph{lowered} the backtracking rate
-($0.163$ vs $0.231$, $\Delta = -0.068$ $[-0.074,-0.062]$) rather than
-suppressing it as intended. We report this as a negative result with a
-mechanism (Sec.~\ref{sec:audit}) rather than tuning until it passes: the
-directions are real and interpretable (Sec.~\ref{sec:interp}), but applying
-them open-loop over long horizons destabilizes the chain.
-
-\subsection{What the directions encode}
-\label{sec:interp}
-
-A logit-lens read of each direction is informative and, usefully, disagrees
-across channels. The phase directions decode to exactly the concepts they are
-named for: the backtracking direction most promotes \emph{but}, \emph{However},
-\emph{But}, \emph{perhaps}---including the corresponding Chinese discourse
-connectives, indicating a language-general feature rather than a token
-pattern---and the verification direction promotes \emph{checking},
-\emph{check}, \emph{verification}, \emph{confirming}. The convergence
-direction does not admit such a reading: apart from the end-of-sequence token,
-which is exactly what one would want, its top promotions are not semantically
-coherent. We take this as evidence that the phase channel is a genuine
-interpretable feature while the convergence probe, though predictive and
-useful, is better described as a decodable correlate than as a clean monosemantic
-``I am finished'' direction.
-
-\subsection{On-policy calibration does not imply calibration under control}
+\subsection{Calibration collapses under intervention}
 \label{sec:audit}
 
 This is, we believe, the most transferable finding in the paper. The
@@ -469,6 +462,64 @@ better threshold but a probe retrained on the states it induces. We regard
 this as a caution for the broader class of probe-driven controllers: reporting
 on-policy AUC and ECE, as is standard, does not establish that a sensor will
 behave when it is put in charge.
+
+\subsection{The write channel fails the same way}
+\label{sec:steer}
+
+The read channel is not a special case. We built a steering actuator from
+diff-of-means directions for the reasoning phases, orthogonalized against the
+probe weights so that sensor and actuator are decoupled. Validated in
+isolation these directions are exactly what they claim to be: under a logit
+lens the backtracking direction most promotes \emph{but}, \emph{However},
+\emph{But}, \emph{perhaps}---including the corresponding Chinese discourse
+connectives, indicating a language-general feature rather than a token
+pattern---and the verification direction promotes \emph{checking},
+\emph{check}, \emph{verification}, \emph{confirming}.
+
+Applied closed-loop, they fail. We pre-registered an acceptance gate---the
+actuator ships only if the upper confidence bound on the paired accuracy drop
+is below $2\%$ over at least 200 paired dev rollouts---and it fails by an
+order of magnitude. At $\alpha{=}3$ over 250 paired problems (1000 rollouts),
+steering costs $-0.215$ $[-0.251,-0.180]$ accuracy and, far from saving
+compute, \emph{adds} $+3{,}583$ $[+3{,}131,+4{,}063]$ thinking tokens. A
+regex screen shows the intervention moving in the wrong direction entirely:
+positive $\alpha$ \emph{lowered} the backtracking rate ($0.163$ vs $0.231$,
+$\Delta = -0.068$ $[-0.074,-0.062]$) rather than suppressing it as intended.
+A second pre-registered gate (steering must contribute $\ge 5\%$ of
+exit-only's savings) therefore resolved this paper to be exit-led, in writing,
+before test results were examined.
+
+Interpretability of a direction, then, is not evidence that the direction is
+safe to act on---the same gap that separates the probe's offline calibration
+from its behavior in the loop. Notably, the convergence direction is the
+\emph{less} interpretable of the two under a logit lens (apart from the
+end-of-sequence token, its top promotions are not semantically coherent) yet
+it is the one that produces a useful controller. Interpretability and
+actionability are close to orthogonal here.
+
+\subsection{Why threshold tuning cannot repair this}
+\label{sec:whynot}
+
+A natural response is that the exit threshold is simply set too aggressively.
+The dev sweep says otherwise: accuracy is close to flat in $\tau$ across
+$\{0.7,0.8,0.9,0.95\}$ and $K \in \{1,2\}$, so raising the bar buys tokens
+rather than correctness. This is what Table~\ref{tab:audit} predicts---if
+asserted confidence does not track correctness under intervention, then
+thresholding that confidence more strictly cannot buy correctness.
+
+We can make the argument quantitative. Estimating each grid point's accuracy
+at the corrected answer budget from its unparsed-answer rate, calibrated on
+the two configurations we measured at both budgets, the 1-SE selection rule
+returns the \emph{same} operating point under both a conservative and a
+generous calibration; the best attainable accuracy anywhere on the grid
+remains below the unintervened control. The binding constraint is the sensor's
+behavior under its own intervention, not the threshold applied to it.
+
+The implied fix is standard in imitation learning and absent from probe-based
+control: collect probe training data \emph{on the states the controller
+induces} and retrain iteratively, rather than on undisturbed rollouts. We did
+not have the budget to do this here, and we think it is the most promising
+next step for this class of method.
 
 \section{Two Measurement Pitfalls}
 \label{sec:pitfalls}
@@ -516,21 +567,27 @@ model families is untested.
 \section{Conclusion}
 
 Whether a reasoning model has finished thinking is written legibly in its
-residual stream, is readable with a single matrix--vector product on
-activations already computed, and is stable enough that a threshold chosen on a
-1.5B model transfers to a 7B one without retuning. Turning that signal into a
-controller removes more than half of all thinking tokens for a small accuracy
-cost, dominates compute-matched static budgeting at 7B, and improves accuracy
+residual stream. It is readable with a single matrix--vector product on
+activations already computed, it survives a strict position control at two
+scales, and the threshold that reads it transfers from a 1.5B model to a 7B
+one untouched. Acting on it removes more than half of all thinking tokens,
+dominates compute-matched static budgeting at 7B, and improves accuracy
 outright on hard out-of-distribution multiple choice.
 
-The limits are as informative as the gains. A steering actuator built from the
-same representations fails decisively despite those representations being
-individually interpretable, and the convergence probe---well calibrated on
-stored rollouts---turns out to be uninformative once it is the thing choosing
-when to stop. We think the most useful thing this paper offers the next system
-is that second result: a sensor's on-policy calibration is not evidence about
-its behavior in the loop, and the natural remedy is to train it on the states
-its own decisions create.
+The limits are the more transferable half of the result. The same probe whose
+calibration is excellent on stored rollouts asserts confidences that carry
+almost no information once it is the thing choosing when to stop; a steering
+actuator built from demonstrably interpretable directions in the same space
+degrades the chain it was meant to improve. Neither failure is a tuning
+problem, and both share a cause: each component was measured on states the
+undisturbed model produces and then deployed on states it produces itself.
+
+For work that puts probes in control loops, we think the practical implication
+is concrete. Offline AUC, ECE, and interpretability---the standard evidence
+that a direction means what we say it means---establish that a representation
+is readable, not that it is actionable. Those are different properties, they
+can come apart sharply, and closing the gap likely requires training sensors
+on the distribution their own decisions create.
 
 \begin{thebibliography}{99}
 \small
