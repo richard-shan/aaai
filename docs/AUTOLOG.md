@@ -1,6 +1,6 @@
 # Autopilot auto-log (machine-generated; prose lives in docs/RESULTS.md)
 
-Updated: 2026-08-02T09:17:41Z — last milestone: AUTOPILOT2 COMPLETE (failures=2) — safe to terminate GPU instance
+Updated: 2026-08-02T09:20:50Z — last milestone: FINAL: primary endpoint computed (fails accuracy leg); 7B transfer + interp + engine-agreement tables
 
 ## Step failures
 ```

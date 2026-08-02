@@ -315,6 +315,57 @@ test.
 
 ## Test (8 seeds, single-shot at selected points)
 
+### ★ PRIMARY ENDPOINT — FINAL (2026-08-02)
+
+Pre-registered: pooled MATH-500 + GSM8K test, hierarchical (token superiority
+-> accuracy non-inferiority at margin 0.02), cluster bootstrap 10k over
+problems, against the SAME-ENGINE (HF-loop) noop reference.
+`runs/analysis/<tag>/primary_endpoint.json`, via `scripts/primary_endpoint.py`.
+
+| pooled MATH-500+GSM8K test | acc [95% CI] | mean think |
+|---|---|---|
+| **1.5B** exit_only t0.7/K2 (8 seeds) | 0.8165 [0.7960, 0.8362] | 1773 |
+| 1.5B noop, same engine (3 seeds) | 0.8556 [0.8347, 0.8756] | 3722 |
+| 1.5B noop, vLLM (8 seeds) | 0.8472 [0.8268, 0.8665] | 3796 |
+| 1.5B static_budget B*=2048 (8 seeds) | 0.8028 [0.7797, 0.8252] | 1578 |
+| **7B** exit_only, transferred (4 seeds) | 0.8627 [0.8427, 0.8817] | 1093 |
+| 7B noop, same engine (1 seed) | 0.9360 [0.9173, 0.9533] | 2622 |
+| 7B noop, vLLM (4 seeds) | 0.9233 [0.9070, 0.9387] | 2838 |
+| 7B static_budget B*=2048 (4 seeds) | 0.8487 [0.8263, 0.8703] | 1499 |
+
+**Verdict on the pre-registered hierarchy — the primary endpoint FAILS.**
+
+| 1.5B, exit_only vs same-engine noop | result |
+|---|---|
+| gate 1: token superiority | **PASSED** — -1949 tokens [-2107, -1798], **-52.4%** |
+| gate 2: accuracy non-inferiority (margin 0.02) | **FAILED** — delta -0.0391 [-0.0535, -0.0244] |
+
+The lower CI bound of the accuracy drop is -0.054, well past the -0.02 margin,
+so the controller does **not** clear its own pre-registered non-inferiority
+bar. The same holds at 7B (-0.0733 [-0.0907, -0.0563]) and cross-engine
+(-0.0307 [-0.0420, -0.0192]). This is stated first because it is the
+pre-registered test and it did not pass; every favourable result below is
+secondary to it.
+
+**Where the controller does win: against the compute-matched baseline, at 7B.**
+
+| exit_only vs static_budget B*=2048 | 1.5B | 7B |
+|---|---|---|
+| token superiority | **FAILED** (+195 tokens [+16, +387]) | **PASSED** (-406 [-499, -301], -27.1%) |
+| accuracy delta | +0.0137 [+0.0005, +0.0277] | +0.0140 [+0.0000, +0.0287] |
+| joint verdict | no dominance | **dominates** (cheaper AND non-inferior) |
+
+At 1.5B the learned controller is *not* better than simply capping the budget:
+it buys +0.014 accuracy while spending 12% MORE tokens. At 7B it dominates —
+27% cheaper at equal-or-better accuracy. So the defensible claim is narrow and
+scale-dependent: a probe-driven exit beats a fixed budget only once the model
+is strong enough that *when* to stop varies meaningfully across problems.
+
+Honest summary for the paper: **early exit buys a large, reliable compute
+saving (~52-58% of think tokens) at an accuracy cost that is small but
+statistically real, and larger than we pre-registered as acceptable.** It is
+not a free lunch. Its one clean win over a compute-matched baseline is at 7B.
+
 ### 1.5B — LANDED (2026-08-01; 8 seeds each, answer budget 2048)
 
 Mean over seeds +- SE of the seed mean. `exit_only` runs on the HF controller
@@ -350,8 +401,56 @@ Retained robustness datapoint: the 2 v1 seeds at the *uncorrected* point
 gap to the corrected point is almost entirely the 512-token answer cap, and
 they are reported only as provenance, never as an endpoint.
 
-- [ ] HF-noop test reference (3 seeds, GPU0, in flight) — within-engine primary
-- [ ] 7B transfer at 1.5B-selected points (GPU1, in flight)
+- [x] HF-noop test reference (3 seeds) — within-engine primary, see above
+- [x] 7B transfer at 1.5B-selected points (4 seeds + refs + 1 within-engine noop)
+
+### 7B transfer — LANDED (2026-08-02; 4 seeds, answer budget 2048)
+
+The 1.5B-selected operating point applied to the 7B with NO retuning.
+
+| policy | MATH-500 | GSM8K | GPQA-D | AIME'25 |
+|---|---|---|---|---|
+| noop (vLLM, 4 seeds) | 0.924 @3548 | 0.923 @1417 | 0.381 @6432 | 0.392 @13179 |
+| noop (HF, 1 seed) | 0.940 @3240 | 0.928 @1387 | 0.384 @6573 | 0.333 @12450 |
+| **exit_only (HF, 4 seeds)** | 0.846 @1398 | 0.897 @483 | **0.433 @2607** | 0.258 @7805 |
+| static_budget B*=2048 | 0.815 @1682 | 0.916 @1134 | 0.405 @1916 | 0.217 @2039 |
+
+Cost of early exit scales with how much genuine search the problem needs:
+GPQA **+0.049** (exit wins), GSM8K -0.031, MATH -0.094, AIME -0.075 (n=30,
+descriptive anchor only). The accuracy cost at 7B is ~2x the 1.5B cost
+(-0.073 vs -0.039 pooled) for a comparable token saving — a threshold tuned on
+a weaker model exits too eagerly for a stronger one. Selection at 7B was not
+affordable and is left as stated future work; this is a transfer result, not a
+tuned one.
+
+### Cross-engine agreement — the "engine gap" is fully closed
+
+The 0.16 "engine gap" reported on 2026-07-30 was an artifact of the answer
+budget defect. At 2048 tokens the two engines agree on every dataset at both
+scales:
+
+| noop, test | 1.5B HF / vLLM | 7B HF / vLLM |
+|---|---|---|
+| MATH-500 | 0.844 / 0.833 | 0.940 / 0.924 |
+| GSM8K | 0.879 / 0.877 | 0.928 / 0.923 |
+| GPQA-D | 0.249 / 0.240 | 0.384 / 0.381 |
+| AIME'25 | 0.244 / 0.225 | 0.333 / 0.392 |
+| **pooled primary** | **0.856 / 0.847** | **0.936 / 0.923** |
+
+### Interp (logit lens) — supports the phase probes, NOT v_conv
+
+`runs/analysis/<tag>/interp.json`. The phase directions decode to exactly the
+concepts they are named for, including across languages:
+- `backtracking_L21` promotes ` but`, ` However`, `But`, `但是`, `然而`, ` perhaps`
+- `verification_L21` promotes ` checking`, ` check`, ` verification`, ` confirming`
+
+But `v_conv` — the direction that actually drives the EXIT decision — does
+not: it promotes ` Norton`, `vit`, ` whatsoever`, `ser`, `om`, with
+`<|end_of_sentence|>` the single meaningful entry. Reported as a negative:
+the interpretability claim is supported for the phase probes and unsupported
+for the convergence probe, which is consistent with the closed-loop audit
+finding that the settle-detector is well-calibrated on-policy yet badly
+overconfident under intervention.
 - [ ] Primary endpoint: pooled MATH-500+GSM8K, hierarchical (token
       superiority -> accuracy non-inferiority), cluster bootstrap 10k
 - [ ] AIME'25 + GPQA descriptive CIs (anchors)
